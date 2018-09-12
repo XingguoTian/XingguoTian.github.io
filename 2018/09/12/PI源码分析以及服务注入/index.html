@@ -82,14 +82,14 @@
 <meta name="description" content="Introduction to PIPI 是由 Barefoot 和 Google 合力打造的针对P4生态的一个开源框架，目前，该框架主要为 P4 生态下的软件交换机 bmv2 服务。我们知道 OpenFlow 协议，一种依赖于网络协议的编程协议。 而P4提出了独立于网络协议的编程生态。在 SDN 框架下，如何控制器和交换机的交互？目前非常成熟的技术是利用 OpenFlow 协议。但是， 在P4的">
 <meta name="keywords" content="gRPC,protobuf,c++">
 <meta property="og:type" content="article">
-<meta property="og:title" content="PI源码分析以及服务注入">
+<meta property="og:title" content="PI源码分析以及服务注入(1)">
 <meta property="og:url" content="http://yoursite.com/2018/09/12/PI源码分析以及服务注入/index.html">
 <meta property="og:site_name" content="Tian-Daye on the Way">
 <meta property="og:description" content="Introduction to PIPI 是由 Barefoot 和 Google 合力打造的针对P4生态的一个开源框架，目前，该框架主要为 P4 生态下的软件交换机 bmv2 服务。我们知道 OpenFlow 协议，一种依赖于网络协议的编程协议。 而P4提出了独立于网络协议的编程生态。在 SDN 框架下，如何控制器和交换机的交互？目前非常成熟的技术是利用 OpenFlow 协议。但是， 在P4的">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2018-09-12T05:10:14.897Z">
+<meta property="og:updated_time" content="2018-09-12T05:19:22.805Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="PI源码分析以及服务注入">
+<meta name="twitter:title" content="PI源码分析以及服务注入(1)">
 <meta name="twitter:description" content="Introduction to PIPI 是由 Barefoot 和 Google 合力打造的针对P4生态的一个开源框架，目前，该框架主要为 P4 生态下的软件交换机 bmv2 服务。我们知道 OpenFlow 协议，一种依赖于网络协议的编程协议。 而P4提出了独立于网络协议的编程生态。在 SDN 框架下，如何控制器和交换机的交互？目前非常成熟的技术是利用 OpenFlow 协议。但是， 在P4的">
 
 
@@ -126,7 +126,7 @@
 
 
 
-  <title>PI源码分析以及服务注入 | Tian-Daye on the Way</title>
+  <title>PI源码分析以及服务注入(1) | Tian-Daye on the Way</title>
   
 
 
@@ -280,7 +280,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">PI源码分析以及服务注入</h1>
+          <h1 class="post-title" itemprop="name headline">PI源码分析以及服务注入(1)</h1>
         
 
         <div class="post-meta">
@@ -292,7 +292,7 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-12T13:10:14+08:00">
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-12T13:19:22+08:00">
                 2018-09-12
               </time>
             
@@ -364,7 +364,7 @@
       
         <h2 id="Introduction-to-PI"><a href="#Introduction-to-PI" class="headerlink" title="Introduction to PI"></a>Introduction to PI</h2><p>PI 是由 Barefoot 和 Google 合力打造的针对P4生态的一个开源框架，目前，该框架主要为 P4 生态下的软件交换机 bmv2 服务。我们知道 OpenFlow 协议，一种依赖于网络协议的编程协议。 而P4提出了独立于网络协议的编程生态。在 SDN 框架下，如何控制器和交换机的交互？目前非常成熟的技术是利用 OpenFlow 协议。但是， 在P4的生态下，OpenFlow 就显得心有余而力不足了。在P4生态下， P4runtime 用来进行控制器和交换机的通信。而 PI 是一个将控制器，交换机， P4runtime 集合到一起的框架。目前，在该框架下可以完成的事情：使用 bmv2交换机， 通过 CLI 接口在runtime时对 bmv2交换机进行控制。<br>从PI的整体框架上来说， 控制器（CLI)<--p4runtime-->中间层PI<----->后端系统<----->特定交换机。 如果用户想要使用P4runtime 控制自己的交换机，那么用必须自己完善相应的后端系统。 目前针对交换机 bmv2的整个系统链已经完成呢。在PI框架下可以见到相关的bmv2 后端系统的实现代码。<br>PI 源代码见 <a href="https://github.com/p4lang/PI" target="_blank" rel="noopener">https://github.com/p4lang/PI</a></-----></-----></--p4runtime--></p>
 <h2 id="Install-PI"><a href="#Install-PI" class="headerlink" title="Install PI"></a>Install PI</h2><p>PI 的详细安装过程代码仓库中已经给出了，这里列出我在编译时遇到的几个麻烦的点：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">ques1:</span><br><span class="line">在执行configure 时的错误：</span><br><span class="line">checking for python version... 2.7</span><br><span class="line">checking for python platform... linux2</span><br><span class="line">checking for python script directory... $&#123;prefix&#125;/lib/python2.7/dist-packages</span><br><span class="line">checking for python extension module directory... $&#123;exec_prefix&#125;/lib/python2.7/dist-packages</span><br><span class="line">./configure: line 16188: syntax error near unexpected token `PROTOBUF,&apos;</span><br><span class="line">./configure: line 16188: `PKG_CHECK_MODULES(PROTOBUF, protobuf &gt;= 3.0.0)&apos;</span><br><span class="line">configure: error: ./configure failed for proto</span><br><span class="line"></span><br><span class="line">解决方法：</span><br><span class="line">sudo apt-get install pkg-config</span><br><span class="line">export PROTOBUF=/usr/local</span><br><span class="line">export PROTOC=&quot;$PROTOBUF/bin/protoc&quot;</span><br><span class="line">export PROTOBUF_LIBS=&quot;-L$PROTOBUF/lib -lprotobuf -D_THREAD_SAFE&quot;</span><br><span class="line">export PROTOBUF_CFLAGS=&quot;-I$PROTOBUF/include -D_THREAD_SAFE&quot; </span><br><span class="line"></span><br><span class="line">注意：执行完上述步骤之后重新开始执行 ./autogen.sh</span><br><span class="line"></span><br><span class="line">ques2:</span><br><span class="line">checking for boostlib &gt;= 1.54.0... yes</span><br><span class="line">checking whether the Boost::Thread library is available... yes</span><br><span class="line">configure: error: Could not find a version of the library!</span><br><span class="line"></span><br><span class="line">solved: --with-boost-libdir=？？？</span><br><span class="line">如果实在ARM环境下： ./configure --with-boost-libdir=/usr/lib/arm-linux-gnueabihf/</span><br></pre></td></tr></table></figure></p>
-<p>#外， PI代码仓库中有一个demo,位于 PI/proto/demo_grpc/, 如果在 configure 过程中指定 –with-bmv2, 那么该demo一定会编#； 如果不想与bmv2进行交互，如果系统中缺少 ibmicrohttpd 插件，则不会进行编译并且不会报错， 如果系统中装有该插件，该demo #进行编译。</p>
+<p>#外， PI代码仓库中有一个demo,位于 PI/proto/demo_grpc/, 如果在 configure 过程中指定 –with-bmv2, 那么该demo一定会编#； 如果不想与bmv2进行交互，如果系统中缺少 libmicrohttpd 插件，则不会进行编译并且不会报错， 如果系统中装有该插件，该demo #进行编译。</p>
 
       
     </div>
@@ -447,7 +447,7 @@
   
     <div class="comments" id="comments">
       <div class="ds-thread" data-thread-key="2018/09/12/PI源码分析以及服务注入/"
-           data-title="PI源码分析以及服务注入" data-url="http://yoursite.com/2018/09/12/PI源码分析以及服务注入/">
+           data-title="PI源码分析以及服务注入(1)" data-url="http://yoursite.com/2018/09/12/PI源码分析以及服务注入/">
       </div>
     </div>
 
