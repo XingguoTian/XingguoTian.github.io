@@ -262,6 +262,149 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/12/simulator/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Xingguo">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tian-Daye on the Way">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/09/12/simulator/" itemprop="url">Using Qemu to Simulate ARM</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-12T13:36:43+08:00">
+                2018-09-12
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2018/09/12/simulator/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count ds-thread-count" data-thread-key="2018/09/12/simulator/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h1 id="How-to-use-qemu-to-build-an-ARM-simulator"><a href="#How-to-use-qemu-to-build-an-ARM-simulator" class="headerlink" title="How to use qemu to build an ARM simulator?"></a>How to use qemu to build an ARM simulator?</h1><h2 id="Download-the-source-code-of-qemu-from-github"><a href="#Download-the-source-code-of-qemu-from-github" class="headerlink" title="Download the source code of qemu from github:"></a>Download the source code of qemu from github:</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ git clone git://github.com/Xilinx/qemu.git    </span><br><span class="line">$ cd qemu</span><br></pre></td></tr></table></figure>
+<p>The command above will by default clone the master branch of QEMU. This generally is ahead of the version of QEMU released with PetaLinux. This means it has improvements and new features compared to the released version, but is also is less thoroughly tested and could have unknown bugs. If you want to build the source that was used for the released version of QEMU, please checkout the appropriate tag instead of the master branch.<br>As of QEMU released with 2016.2 all tags created by Xilinx will be signed and verified by a valid PGP signature.    </p>
+<h2 id="Install-Qemu-Linux-Dependencies"><a href="#Install-Qemu-Linux-Dependencies" class="headerlink" title="Install Qemu Linux Dependencies"></a>Install Qemu Linux Dependencies</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ sudo apt install libglib2.0-dev libgcrypt20-dev zlib1g-dev autoconf automake libtool bison flex</span><br></pre></td></tr></table></figure>
+<p>QEMU also includes sub modules that will need to be checked out. Use the follow command to checkout the appropriate sub modules.<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ git submodule update --init dtc</span><br></pre></td></tr></table></figure></p>
+<h2 id="Configuring-QEMU"><a href="#Configuring-QEMU" class="headerlink" title="Configuring QEMU"></a>Configuring QEMU</h2><p>QEMU must be configured to build on the Linux host. This can be accomplished using the following command line.<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ ./configure --target-list=&quot;aarch64-softmmu,microblazeel-softmmu&quot; --enable-fdt --disable-kvm --disable-xen</span><br></pre></td></tr></table></figure></p>
+<h2 id="Building-QEMU"><a href="#Building-QEMU" class="headerlink" title="Building QEMU"></a>Building QEMU</h2><p>The following command line builds QEMU to run on the host computer.<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make</span><br></pre></td></tr></table></figure></p>
+<h2 id="Download-Linux-kernel-amp-amp-devicetree"><a href="#Download-Linux-kernel-amp-amp-devicetree" class="headerlink" title="Download Linux kernel &amp;&amp; devicetree"></a>Download Linux kernel &amp;&amp; devicetree</h2><p>Download xilinx release image, version zynq 2016.4. From url <a href="http://www.wiki.xilinx.com/Zynq%202016.4%20Release" target="_blank" rel="noopener">http://www.wiki.xilinx.com/Zynq%202016.4%20Release</a> we can get file 2016.4-zc706-release.tar.zx, compress this file and we will get dtb &amp;&amp; uImage. Besides, we can produce our own devicetree and customed kernel.</p>
+<h2 id="Download-Ubuntu-Filesystem"><a href="#Download-Ubuntu-Filesystem" class="headerlink" title="Download Ubuntu Filesystem"></a>Download Ubuntu Filesystem</h2><p>At this time, we choose a existed filesystem. From source <a href="https://rcn-ee.com/rootfs/eewiki/minfs/" target="_blank" rel="noopener">https://rcn-ee.com/rootfs/eewiki/minfs/</a>  we download file ubuntu-16.04.4-minimal-armhf-2018-03-26.tar.xz. Compress the file and we will get the rootfs x.tar. </p>
+<h2 id="Make-a-startup-disk"><a href="#Make-a-startup-disk" class="headerlink" title="Make a startup disk"></a>Make a startup disk</h2><figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">dd <span class="keyword">if</span>=/dev/zero of=ubuntu.ext4 <span class="comment"># produce a file named ubuntu.ext4</span></span><br><span class="line">mkfs.ext4 ubuntu.ext4 <span class="comment"># Format ubuntu.ext4</span></span><br><span class="line">sudo mkdir -p /mnt/rootfs <span class="comment"># make a dir /mnt/rootfs</span></span><br><span class="line">sudo mount ubuntu.ext4 /mnt/rootfs <span class="comment"># mount ubuntu.ext4 to /mnt/rootfs</span></span><br><span class="line">sudo tar x.tar -C /mnt/rootfs/</span><br><span class="line">sync <span class="comment"># </span></span><br><span class="line">sudo chown root:root /mnt/rootfs/</span><br><span class="line">sudo chmod 755 /mnt/rootfs  </span><br><span class="line">sudo umount /mnt/rootfs</span><br></pre></td></tr></table></figure>
+<h2 id="Start-Up-Qemu"><a href="#Start-Up-Qemu" class="headerlink" title="Start Up Qemu"></a>Start Up Qemu</h2><p> In the file qemu, excute the following command<br> <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">./aarch64-softmmu/qemu-system-aarch64  </span><br><span class="line">-M arm-generic-fdt-7series -machine linux=on</span><br><span class="line">-serial /dev/null -serial mon:stdio -display none</span><br><span class="line">-kernel ../project/2016.4-zc706-release/zc706/uImage</span><br><span class="line">-dtb ../project/2016.4-zc706-release/zc706/my.dtb</span><br><span class="line">-sd ../project/ubuntu.ext4</span><br><span class="line">-append &apos;root=/dev/mmcblk0 rw rootwait console=ttyPS0 devtmpfs mount=0&apos;</span><br></pre></td></tr></table></figure></p>
+<p> Anoter way to start qemu:<br> <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"> ./aarch64-softmmu/qemu-system-aarch64  </span><br><span class="line">-M arm-generic-fdt-7series -machine linux=on</span><br><span class="line">-serial /dev/null -serial mon:stdio -display none</span><br><span class="line">-kernel ../project/2016.4-zc706-release/zc706/uImage</span><br><span class="line">-dtb ../project/2016.4-zc706-release/zc706/my.dtb</span><br><span class="line">-drive if=sd,cache=writeback,file=../project/ubuntu.ext4</span><br><span class="line">-append &apos;root=/dev/mmcblk0 rw rootwait console=ttyPS0 devtmpfs mount=0&apos;</span><br></pre></td></tr></table></figure></p>
+<p> Anotations  below to specify the meanings of the arguments:<br> <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"># qemu-system-aarch64</span><br><span class="line"># -M</span><br><span class="line"># -serial</span><br><span class="line"># -kernel</span><br><span class="line"># -dtb</span><br><span class="line"># -drive</span><br><span class="line"># -append</span><br></pre></td></tr></table></figure></p>
+<h2 id="Standard-Arguments-Required"><a href="#Standard-Arguments-Required" class="headerlink" title="Standard Arguments Required"></a>Standard Arguments Required</h2><p> The standard arguments to startup qemu can been seen @: <a href="https://qemu.weilnetz.de/doc/qemu-doc.html#pcsys_005fquickstart" target="_blank" rel="noopener">https://qemu.weilnetz.de/doc/qemu-doc.html#pcsys_005fquickstart</a></p>
+<p> Reference: <a href="http://www.wiki.xilinx.com/QEMU" target="_blank" rel="noopener">Xilinx Qemu Wiki</a></p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/12/PI源码分析以及服务注入/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -762,7 +905,7 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">3</span>
+                  <span class="site-state-item-count">4</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
