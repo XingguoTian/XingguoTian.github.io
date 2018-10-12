@@ -87,7 +87,7 @@
 <meta property="og:site_name" content="Tian-Daye on the Way">
 <meta property="og:description" content="demo_grpc server 端代码分析首先，需要说明的是在本项目中编译后端即目标交换机不是 bmv2, 使用 dummmy交换机， 该交换机的所有相关代码都没有实现，需要开发者根据自己的目标交换机来实现具体的函数。 函数入口pi_server_main.cpp 是整个server 端的入口。关键函数：12345PIGrpcServerRunAddr(server_address);```">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2018-10-12T12:50:14.533Z">
+<meta property="og:updated_time" content="2018-10-12T13:10:14.613Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="PI源码分析以及服务注入(3)">
 <meta name="twitter:description" content="demo_grpc server 端代码分析首先，需要说明的是在本项目中编译后端即目标交换机不是 bmv2, 使用 dummmy交换机， 该交换机的所有相关代码都没有实现，需要开发者根据自己的目标交换机来实现具体的函数。 函数入口pi_server_main.cpp 是整个server 端的入口。关键函数：12345PIGrpcServerRunAddr(server_address);```">
@@ -292,7 +292,7 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-12T20:50:14+08:00">
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-12T21:10:15+08:00">
                 2018-10-12
               </time>
             
@@ -366,31 +366,58 @@
         <h2 id="demo-grpc-server-端代码分析"><a href="#demo-grpc-server-端代码分析" class="headerlink" title="demo_grpc server 端代码分析"></a>demo_grpc server 端代码分析</h2><p>首先，需要说明的是在本项目中编译后端即目标交换机不是 bmv2, 使用 dummmy交换机， 该交换机的所有相关代码都没有实现，需要开发者根据自己的目标交换机来实现具体的函数。</p>
 <h3 id="函数入口"><a href="#函数入口" class="headerlink" title="函数入口"></a>函数入口</h3><p><font color="red">pi_server_main.cpp</font> 是整个server 端的入口。关键函数：<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">PIGrpcServerRunAddr(server_address);</span><br><span class="line">```    </span><br><span class="line">查看函数 &lt;font color=red&gt;<span class="keyword">void</span> PIGrpcServerRunAddr(<span class="keyword">const</span> <span class="keyword">char</span> *server_address)&lt;/font&gt;, 该函数位于 pi_server.cpp 文件中。该函数将会初始化整个服务器，包括绑定服务等等。下面将会分析P4runtime 提供的相关服务。在该文件中，类 P4RuntimeServiceImpl 实现了p4runtime 的服务。</span><br><span class="line">```cpp </span><br><span class="line">class P4RuntimeServiceImpl : <span class="keyword">public</span> p4v1::P4Runtime::Service &#123;...&#125;</span><br></pre></td></tr></table></figure></p>
 <h4 id="p4runtime-的服务函数包括："><a href="#p4runtime-的服务函数包括：" class="headerlink" title="p4runtime 的服务函数包括："></a>p4runtime 的服务函数包括：</h4><ol>
-<li>Write 函数, <figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Status <span class="title">Write</span><span class="params">(ServerContext *context,</span></span></span><br><span class="line"><span class="function"><span class="params">              <span class="keyword">const</span> p4v1::WriteRequest *request,</span></span></span><br><span class="line"><span class="function"><span class="params">              p4v1::WriteResponse *rep)</span> override </span>&#123;&#125;</span><br></pre></td></tr></table></figure>
+<li><p>Write 函数, </p>
+<pre><code class="cpp"><span class="function">Status <span class="title">Write</span><span class="params">(ServerContext *context,</span></span>
+<span class="function"><span class="params">            <span class="keyword">const</span> p4v1::WriteRequest *request,</span></span>
+<span class="function"><span class="params">            p4v1::WriteResponse *rep)</span> override </span>{}
+</code></pre>
+<p>简介：Write 函数实现了 Write rpc服务，用作 client 向 server 端进行相关写操作。关键代码：</p>
+<pre><code class="cpp"><span class="keyword">auto</span> device = Devices::get(request-&gt;device_id());<span class="comment">//根据device_id确定要访问的设备；</span>
+...
+<span class="keyword">auto</span> device_mgr = device-&gt;get_p4_mgr();<span class="comment">// 获取访问对象的 p4_mgr, 该 p4_mgr 由p4代码段生成的json文件配置而成。</span>
+...
+<span class="keyword">auto</span> status = device_mgr-&gt;write(*request);<span class="comment">// 将client端的request交由device_mgr， 由device_mgr进行相关处理。</span>
+</code></pre>
 </li>
-</ol>
-<p>简介：Write 函数实现了 Write rpc服务，用作 client 向 server 端进行相关写操作。关键代码：<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> device = Devices::get(request-&gt;device_id());<span class="comment">//根据device_id确定要访问的设备；</span></span><br><span class="line">...</span><br><span class="line"><span class="keyword">auto</span> device_mgr = device-&gt;get_p4_mgr();<span class="comment">// 获取访问对象的 p4_mgr, 该 p4_mgr 由p4代码段生成的json文件配置而成。</span></span><br><span class="line">...</span><br><span class="line"><span class="keyword">auto</span> status = device_mgr-&gt;write(*request);<span class="comment">// 将client端的request交由device_mgr， 由device_mgr进行相关处理。</span></span><br></pre></td></tr></table></figure></p>
-<ol>
 <li><p>Read 函数</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Status <span class="title">Read</span><span class="params">(ServerContext *context,</span></span></span><br><span class="line"><span class="function"><span class="params">              <span class="keyword">const</span> p4v1::ReadRequest *request,</span></span></span><br><span class="line"><span class="function"><span class="params">              ServerWriter&lt;p4v1::ReadResponse&gt; *writer)</span> override </span>&#123;...&#125;</span><br><span class="line">``` </span><br><span class="line">简介： Read 函数实现了 p4runtime proto 中的 Read rpc 服务。用于从client端向server端读取信息。server端将转发请求给device_mgr,之后server端收到device_mgr的返回信息，然后在发送给client端:</span><br><span class="line">```cpp</span><br><span class="line"><span class="keyword">auto</span> status = device_mgr-&gt;read(*request, &amp;response);</span><br><span class="line">writer-&gt;Write(response);<span class="comment">//结果写回client端</span></span><br></pre></td></tr></table></figure>
+<pre><code class="cpp"><span class="function">Status <span class="title">Read</span><span class="params">(ServerContext *context,</span></span>
+<span class="function"><span class="params">           <span class="keyword">const</span> p4v1::ReadRequest *request,</span></span>
+<span class="function"><span class="params">           ServerWriter&lt;p4v1::ReadResponse&gt; *writer)</span> override </span>{...}
+</code></pre>
+<p>简介： Read 函数实现了 p4runtime proto 中的 Read rpc 服务。用于从client端向server端读取信息。server端将转发请求给device_mgr,之后server端收到device_mgr的返回信息，然后在发送给client端:</p>
+<pre><code class="cpp"><span class="keyword">auto</span> status = device_mgr-&gt;read(*request, &amp;response);
+writer-&gt;Write(response);<span class="comment">//结果写回client端</span>
+</code></pre>
 </li>
-<li><p>SetForwardingPipelineConfig 函数</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Status <span class="title">SetForwardingPipelineConfig</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">     ServerContext *context,</span></span></span><br><span class="line"><span class="function"><span class="params">     <span class="keyword">const</span> p4v1::SetForwardingPipelineConfigRequest *request,</span></span></span><br><span class="line"><span class="function"><span class="params">     p4v1::SetForwardingPipelineConfigResponse *rep)</span> override </span>&#123;...&#125;</span><br></pre></td></tr></table></figure>
+<li>SetForwardingPipelineConfig 函数<pre><code class="cpp"><span class="function">Status <span class="title">SetForwardingPipelineConfig</span><span class="params">(</span></span>
+<span class="function"><span class="params">   ServerContext *context,</span></span>
+<span class="function"><span class="params">   <span class="keyword">const</span> p4v1::SetForwardingPipelineConfigRequest *request,</span></span>
+<span class="function"><span class="params">   p4v1::SetForwardingPipelineConfigResponse *rep)</span> override </span>{...}
+</code></pre>
+简介： 该函数实现了 rpc SetForwardingPipelineConfig 服务<pre><code class="cpp"><span class="keyword">auto</span> device_mgr = device-&gt;get_or_add_p4_mgr();<span class="comment">// 获取或者重新分配给一个device_mgr给device；</span>
+ <span class="keyword">auto</span> status = device_mgr-&gt;pipeline_config_set(
+     request-&gt;action(), request-&gt;config()); <span class="comment">// 配置device_mgr</span>
+</code></pre>
 </li>
-</ol>
-<p>简介： 该函数实现了 rpc SetForwardingPipelineConfig 服务<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> device_mgr = device-&gt;get_or_add_p4_mgr();<span class="comment">// 获取或者重新分配给一个device_mgr给device；</span></span><br><span class="line">    <span class="keyword">auto</span> status = device_mgr-&gt;pipeline_config_set(</span><br><span class="line">        request-&gt;action(), request-&gt;config()); <span class="comment">// 配置device_mgr</span></span><br></pre></td></tr></table></figure></p>
-<ol>
-<li>GetForwardingPipelineConfig 函数<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Status <span class="title">GetForwardingPipelineConfig</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">    ServerContext *context,</span></span></span><br><span class="line"><span class="function"><span class="params">    <span class="keyword">const</span> p4v1::GetForwardingPipelineConfigRequest *request,</span></span></span><br><span class="line"><span class="function"><span class="params">    p4v1::GetForwardingPipelineConfigResponse *rep)</span> override </span>&#123;...&#125;</span><br></pre></td></tr></table></figure>
-</li>
-</ol>
-<p>简介： 获取device的配置文件</p>
-<ol>
-<li><p>StreamChannel 函数</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Status <span class="title">StreamChannel</span><span class="params">(ServerContext *context,</span></span></span><br><span class="line"><span class="function"><span class="params">                      StreamChannelReaderWriter *stream)</span> override </span>&#123;...&#125;</span><br></pre></td></tr></table></figure>
-<p>简介： 双向 stream rpc 服务。server端会根据从 request中解析出来的字段 update_case 来做出相应的决策。分析部分代码：</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">case</span> p4v1::StreamMessageRequest::kPacket:</span><br><span class="line"> &#123;</span><br><span class="line">   <span class="keyword">if</span> (connection_status.connection == <span class="literal">nullptr</span>) <span class="keyword">break</span>;</span><br><span class="line">   <span class="keyword">auto</span> device_id = connection_status.device_id;</span><br><span class="line">   Devices::get(device_id)-&gt;process_packet_out(</span><br><span class="line">       connection_status.connection.get(), request.packet());</span><br><span class="line"> &#125;</span><br><span class="line"> <span class="keyword">break</span>;</span><br></pre></td></tr></table></figure>
-<p>这段代码执行了packet_out 操作， 即将 client 端的packet发送到device设备上。</p>
-</li>
+<li>GetForwardingPipelineConfig 函数<pre><code class="cpp"><span class="function">Status <span class="title">GetForwardingPipelineConfig</span><span class="params">(</span></span>
+<span class="function"><span class="params">   ServerContext *context,</span></span>
+<span class="function"><span class="params">   <span class="keyword">const</span> p4v1::GetForwardingPipelineConfigRequest *request,</span></span>
+<span class="function"><span class="params">   p4v1::GetForwardingPipelineConfigResponse *rep)</span> override </span>{...}
+</code></pre>
+简介： 获取device的配置文件</li>
+<li>StreamChannel 函数<pre><code class="cpp"><span class="function">Status <span class="title">StreamChannel</span><span class="params">(ServerContext *context,</span></span>
+<span class="function"><span class="params">                    StreamChannelReaderWriter *stream)</span> override </span>{...}
+</code></pre>
+简介： 双向 stream rpc 服务。server端会根据从 request中解析出来的字段 update_case 来做出相应的决策。分析部分代码：<pre><code class="cpp"><span class="keyword">case</span> p4v1::StreamMessageRequest::kPacket:
+ {
+   <span class="keyword">if</span> (connection_status.connection == <span class="literal">nullptr</span>) <span class="keyword">break</span>;
+   <span class="keyword">auto</span> device_id = connection_status.device_id;
+   Devices::get(device_id)-&gt;process_packet_out(
+       connection_status.connection.get(), request.packet());
+ }
+ <span class="keyword">break</span>;
+</code></pre>
+这段代码执行了packet_out 操作， 即将 client 端的packet发送到device设备上。</li>
 </ol>
 <h4 id="summery-for-server-services"><a href="#summery-for-server-services" class="headerlink" title="summery for server services"></a>summery for server services</h4><p>以上5个函数实现了所有server端提供的 rpc 服务。这5个函数也是在 p4runtime proto 中提前定义好的 rpc 服务。</p>
 
