@@ -79,18 +79,18 @@
 
 
 
-<meta name="description" content="demo_grpc server 端代码分析首先，需要说明的是在本项目中编译后端即目标交换机不是 bmv2, 使用 dummmy交换机， 该交换机的所有相关代码都没有实现，需要开发者根据自己的目标交换机来实现具体的函数。 函数入口pi_server_main.cpp 是整个server 端的入口。关键函数：12345PIGrpcServerRunAddr(server_address);```">
+<meta name="description" content="demo_grpc server 端代码分析首先，需要说明的是在本项目中编译后端即目标交换机不是 bmv2, 使用 dummy交换机， 该交换机的所有相关代码都没有实现，需要开发者根据自己的目标交换机来实现具体的函数。 函数入口pi_server_main.cpp 是整个server 端的入口。关键函数：12345PIGrpcServerRunAddr(server_address);```">
 <meta name="keywords" content="gRPC,protobuf,c++">
 <meta property="og:type" content="article">
 <meta property="og:title" content="PI源码分析以及服务注入(3)">
 <meta property="og:url" content="http://yoursite.com/2018/10/12/PI源码分析以及服务注入_3/index.html">
 <meta property="og:site_name" content="Tian-Daye on the Way">
-<meta property="og:description" content="demo_grpc server 端代码分析首先，需要说明的是在本项目中编译后端即目标交换机不是 bmv2, 使用 dummmy交换机， 该交换机的所有相关代码都没有实现，需要开发者根据自己的目标交换机来实现具体的函数。 函数入口pi_server_main.cpp 是整个server 端的入口。关键函数：12345PIGrpcServerRunAddr(server_address);```">
+<meta property="og:description" content="demo_grpc server 端代码分析首先，需要说明的是在本项目中编译后端即目标交换机不是 bmv2, 使用 dummy交换机， 该交换机的所有相关代码都没有实现，需要开发者根据自己的目标交换机来实现具体的函数。 函数入口pi_server_main.cpp 是整个server 端的入口。关键函数：12345PIGrpcServerRunAddr(server_address);```">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2018-10-12T13:10:14.613Z">
+<meta property="og:updated_time" content="2018-10-12T13:16:13.357Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="PI源码分析以及服务注入(3)">
-<meta name="twitter:description" content="demo_grpc server 端代码分析首先，需要说明的是在本项目中编译后端即目标交换机不是 bmv2, 使用 dummmy交换机， 该交换机的所有相关代码都没有实现，需要开发者根据自己的目标交换机来实现具体的函数。 函数入口pi_server_main.cpp 是整个server 端的入口。关键函数：12345PIGrpcServerRunAddr(server_address);```">
+<meta name="twitter:description" content="demo_grpc server 端代码分析首先，需要说明的是在本项目中编译后端即目标交换机不是 bmv2, 使用 dummy交换机， 该交换机的所有相关代码都没有实现，需要开发者根据自己的目标交换机来实现具体的函数。 函数入口pi_server_main.cpp 是整个server 端的入口。关键函数：12345PIGrpcServerRunAddr(server_address);```">
 
 
 
@@ -363,7 +363,7 @@
       
 
       
-        <h2 id="demo-grpc-server-端代码分析"><a href="#demo-grpc-server-端代码分析" class="headerlink" title="demo_grpc server 端代码分析"></a>demo_grpc server 端代码分析</h2><p>首先，需要说明的是在本项目中编译后端即目标交换机不是 bmv2, 使用 dummmy交换机， 该交换机的所有相关代码都没有实现，需要开发者根据自己的目标交换机来实现具体的函数。</p>
+        <h2 id="demo-grpc-server-端代码分析"><a href="#demo-grpc-server-端代码分析" class="headerlink" title="demo_grpc server 端代码分析"></a>demo_grpc server 端代码分析</h2><p>首先，需要说明的是在本项目中编译后端即目标交换机不是 bmv2, 使用 dummy交换机， 该交换机的所有相关代码都没有实现，需要开发者根据自己的目标交换机来实现具体的函数。</p>
 <h3 id="函数入口"><a href="#函数入口" class="headerlink" title="函数入口"></a>函数入口</h3><p><font color="red">pi_server_main.cpp</font> 是整个server 端的入口。关键函数：<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">PIGrpcServerRunAddr(server_address);</span><br><span class="line">```    </span><br><span class="line">查看函数 &lt;font color=red&gt;<span class="keyword">void</span> PIGrpcServerRunAddr(<span class="keyword">const</span> <span class="keyword">char</span> *server_address)&lt;/font&gt;, 该函数位于 pi_server.cpp 文件中。该函数将会初始化整个服务器，包括绑定服务等等。下面将会分析P4runtime 提供的相关服务。在该文件中，类 P4RuntimeServiceImpl 实现了p4runtime 的服务。</span><br><span class="line">```cpp </span><br><span class="line">class P4RuntimeServiceImpl : <span class="keyword">public</span> p4v1::P4Runtime::Service &#123;...&#125;</span><br></pre></td></tr></table></figure></p>
 <h4 id="p4runtime-的服务函数包括："><a href="#p4runtime-的服务函数包括：" class="headerlink" title="p4runtime 的服务函数包括："></a>p4runtime 的服务函数包括：</h4><ol>
 <li><p>Write 函数, </p>
