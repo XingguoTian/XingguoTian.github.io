@@ -262,6 +262,241 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/03/31/CCP's Implementation Based on Linux Kernel/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Xingguo">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tian-Daye on the Way">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2019/03/31/CCP's Implementation Based on Linux Kernel/" itemprop="url">CCP's Implementation Based on Linux Kernel</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-03-31T19:52:11+08:00">
+                2019-03-31
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Software/" itemprop="url" rel="index">
+                    <span itemprop="name">Software</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2019/03/31/CCP's Implementation Based on Linux Kernel/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count disqus-comment-count"
+                        data-disqus-identifier="2019/03/31/CCP's Implementation Based on Linux Kernel/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="CCP’s-Implementation-Based-on-Linux-Kernel"><a href="#CCP’s-Implementation-Based-on-Linux-Kernel" class="headerlink" title="CCP’s Implementation Based on Linux Kernel"></a>CCP’s Implementation Based on Linux Kernel</h2><h3 id="CCP-简介"><a href="#CCP-简介" class="headerlink" title="CCP 简介"></a>CCP 简介</h3><p>The congestion control plane (CCP) is a new platform for writing and sharing datapath-agnostic congestion control algorithms. It makes it easy to to program sophisticated algorithms (write Rust or Python in a safe user-space environment as opposed to writing C and a risk of crashing your kernel), and allows the same algorithm implementation to be run on a variety of datapaths (Linux Kernel, DPDK or QUIC).</p>
+<h3 id="CCP-整体工作流程梳理"><a href="#CCP-整体工作流程梳理" class="headerlink" title="CCP 整体工作流程梳理"></a>CCP 整体工作流程梳理</h3><ol>
+<li><p>新的拥塞控制算法或者拥塞控制架构都是以注册函数的形式注册进内核，Linux 内核提供了注册拥塞控制算法的接口；</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">  tcp_register_congestion_control(&amp;tcp_ccp_congestion_ops);<span class="comment">//实现注册</span></span><br><span class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">tcp_congestion_ops</span> <span class="title">tcp_ccp_congestion_ops</span> = &#123;</span><span class="comment">//注册内容</span></span><br><span class="line">...</span><br><span class="line">   &#125;;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>拥塞控制算法的实现依赖于对网络中相关特性的测量，例如 RTT, Bandwidth, packet loss等元素。如何获取这些元素？以下3个结构体，它们均由内核提供，提供了基本的已经测量完成的测量元素，可以直接从结构体中读出来。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">sock</span>；//<span class="title">include</span>/<span class="title">net</span>/<span class="title">sock</span>.<span class="title">h</span></span></span><br><span class="line"><span class="class"><span class="title">struct</span> <span class="title">tcp_sock</span>；</span></span><br><span class="line"><span class="class"><span class="title">struct</span> <span class="title">rate_sample</span>;</span><span class="comment">// include/net/tcp.h</span></span><br></pre></td></tr></table></figure>
+<p>以上3个由内核提供的结构体可以提供基本测量元素，例如 bytes_acked, interval_us, rtt_us, losses等。但是，很多时候拥塞控制算法的实现并不单单是使用基本测量元素，而是在基本元素的基础上进行加工而成。举个例子，接受速率或者发送速率需要通过其他基本元素计算出来。CCP针对不同的拥塞控制算法，通过调研，总结出了15种需要测量的元素，又称 primitives，这些元素都是可以通过对socket中的相关数据做简单运算得出来。下列函数实现了该功能。</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">int load_primitives(struct sock *sk, const struct rate_sample *rs)；//ccp-kernel/tcp_ccp.c</span><br></pre></td></tr></table></figure>
+<p>测量结果放在指定的寄存器中。</p>
+</li>
+<li><p>数据平面和控制平面的通信。控制平面位于用户空间，数据平面位于内核空间；数据平面提供控制平面表征网络状况的的测量元素，控制平面根据某种拥塞控制算法来修改数据平面的 cwnd， pacing rate等特性。控制平面和数据平面通过 netlink进行通信。<br> 3.1 数据平面会计算出所有的可能用到的测量元素，但是传输给控制平面的元素仅是由控制面的拥塞控制算法指定的元素。可以这样简单进行理解，但是实际的实现过程略复杂。<br>注：做如下定义：<br>一级测量元：直接从内核中读取到的测量元素；<br>二级测量元：对一级测量元进行简单加工得到的15种primitives;<br>三级测量元：对二级测量元进行运算而成，具体的运算过程由相应的运算控制算法决定。<br>可以说，控制平面在一定程度上定义了元素的测量方法。  </p>
+<p> 3.2 控制平面在算法初始时会将算法需要的测量元素（测量元素的计算方法）告知数据平面，之后会根据数据面传来的测量元素进行决策。</p>
+</li>
+<li><p>控制平面的决策结果如何在决策面生效？例如，控制平面计算出了cwnd的值，那么如何修改发送端的cwnd值呢？首先，控制面将结果发送给数据面，数据面修改内核提供的结构体来达到修改cwnd的值。关键函数如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">  <span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">do_set_cwnd</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">    struct ccp_datapath *dp,</span></span></span><br><span class="line"><span class="function"><span class="params">    struct ccp_connection *conn, </span></span></span><br><span class="line"><span class="function"><span class="params">    <span class="keyword">uint32_t</span> cwnd</span></span></span><br><span class="line"><span class="function"><span class="params">)</span> </span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">sock</span> *<span class="title">sk</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">tcp_sock</span> *<span class="title">tp</span>;</span></span><br><span class="line">    get_sock_from_ccp(&amp;sk, conn);</span><br><span class="line">    tp = tcp_sk(sk);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// translate cwnd value back into packets</span></span><br><span class="line">    cwnd /= tp-&gt;mss_cache;</span><br><span class="line">    tp-&gt;snd_cwnd = cwnd;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>分析上述代码可知，控制平面在sock 结构体上修改，数据平面替换掉原来的sock来达到修改cwnd的效果。</p>
+</li>
+</ol>
+<hr>
+<h2 id="下文是相关函数的具体分析"><a href="#下文是相关函数的具体分析" class="headerlink" title="下文是相关函数的具体分析"></a>下文是相关函数的具体分析</h2><h4 id="数据平面（Linux-Kernel）代码分析"><a href="#数据平面（Linux-Kernel）代码分析" class="headerlink" title="数据平面（Linux Kernel）代码分析"></a>数据平面（Linux Kernel）代码分析</h4><p><a href="https://www.jianshu.com/p/e58c16c357d6" target="_blank" rel="noopener">参考文献</a>,后面有时间再看。<br>文件定位： tcp_CCP.c     </p>
+<ol>
+<li><p>通过module_init将当前模块加载进内核；   </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">module_init(tcp_ccp_register);</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>从tcp_ccp_register函数开启我们的旅程，关键代码： ccp_datapath 和 ccp 之间的关系</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">    struct ccp_datapath dp = &#123;</span><br><span class="line">        .set_cwnd = &amp;do_set_cwnd,</span><br><span class="line">        .set_rate_abs = &amp;do_set_rate_abs,</span><br><span class="line">        .set_rate_rel = &amp;do_set_rate_rel,</span><br><span class="line">        .now = &amp;ccp_now,</span><br><span class="line">        .since_usecs = &amp;ccp_since,</span><br><span class="line">        .after_usecs = &amp;ccp_after</span><br><span class="line">    &#125;;</span><br><span class="line">    //Attached: </span><br><span class="line">    struct ccp &#123;</span><br><span class="line">    // control</span><br><span class="line">    u32 last_snd_una; // 4 B</span><br><span class="line">    u32 last_bytes_acked; // 8 B</span><br><span class="line">    u32 last_sacked_out; // 12 B</span><br><span class="line">    struct skb_info *skb_array; // array of future skb information</span><br><span class="line"></span><br><span class="line">    // communication</span><br><span class="line">    struct ccp_connection *dp;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>这里只以netlink通信方式进行代码分析：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">#if __IPC__ == IPC_NETLINK</span><br><span class="line">    ok = ccp_nl_sk(&amp;ccp_read_msg);//creat a netlink,</span><br><span class="line">    //指定收到消息时的处理函数， 生成立 netlink的socket nl_sk, 一个全局变量， 位于 ccp_nl.cpp文件， </span><br><span class="line">    //struct sock *nl_sk;</span><br><span class="line">    if (ok &lt; 0) &#123;</span><br><span class="line">        return -1;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    dp.send_msg = &amp;nl_sendmsg;//Send serialized message to userspace CCP 指定从kernel发往userspace的发送函数，在ccp_nl.c函数中可以看到具体的发送流程</span><br></pre></td></tr></table></figure></p>
+<p>初始化内核内部ccp的框架<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">ok = ccp_init(&amp;dp);//Initialize gloal state and allocate a map for ccp connections upon module load.</span><br><span class="line">if (ok &lt; 0) &#123;</span><br><span class="line">    return -1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>调用内核接口注册新的拥塞控制算法<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">return tcp_register_congestion_control(&amp;tcp_ccp_congestion_ops);</span><br></pre></td></tr></table></figure></p>
+<ol>
+<li><p>ccp_init 函数： ccp_active_connections、 datapath、 datapath_programs </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">datapath-&gt;set_cwnd           = dp-&gt;set_cwnd;</span><br><span class="line">datapath-&gt;set_rate_abs       = dp-&gt;set_rate_abs;</span><br><span class="line">datapath-&gt;set_rate_rel       = dp-&gt;set_rate_rel;</span><br><span class="line">datapath-&gt;send_msg           = dp-&gt;send_msg;</span><br><span class="line">datapath-&gt;now                = dp-&gt;now;</span><br><span class="line">datapath-&gt;since_usecs        = dp-&gt;since_usecs;</span><br><span class="line">datapath-&gt;after_usecs        = dp-&gt;after_usecs;</span><br><span class="line">datapath-&gt;impl               = dp-&gt;impl;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>分析tcp_ccp_congestion_ops的结构：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">struct tcp_congestion_ops tcp_ccp_congestion_ops = &#123;</span><br><span class="line">    .flags = TCP_CONG_NEEDS_ECN,</span><br><span class="line">    .in_ack_event = tcp_ccp_in_ack_event,</span><br><span class="line">    .name = &quot;ccp&quot;,</span><br><span class="line">    .owner = THIS_MODULE,</span><br><span class="line">    .init = tcp_ccp_init,</span><br><span class="line">    .release = tcp_ccp_release,</span><br><span class="line">    .ssthresh = tcp_ccp_ssthresh,</span><br><span class="line">    //.cong_avoid = tcp_ccp_cong_avoid,</span><br><span class="line">    .cong_control = tcp_ccp_cong_control,</span><br><span class="line">    .undo_cwnd = tcp_ccp_undo_cwnd,</span><br><span class="line">    .set_state = tcp_ccp_set_state,</span><br><span class="line">    .pkts_acked = tcp_ccp_pkts_acked</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p> 4.1 进入关键函数’tcp_ccp_cong_control‘进行分析： inet_csk_ca 函数的作用?；<br>该函数调用函数 ccp_invoke， 在这之前先了解一下ccp_priv_state,ccp_connection结构体：     </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">// libccp Private State  </span><br><span class="line">// struct ccp_connection has a void* state to store libccp&apos;s state  </span><br><span class="line">// libccp internally casts this to a struct ccp_priv_state*</span><br><span class="line">//</span><br><span class="line">struct ccp_priv_state &#123;</span><br><span class="line">    bool sent_create;</span><br><span class="line">    u64 implicit_time_zero; // can be reset</span><br><span class="line"></span><br><span class="line">    u16 program_index; // index into program array</span><br><span class="line">    int staged_program_index;//什么意思？</span><br><span class="line"></span><br><span class="line">    struct register_file registers;</span><br><span class="line">    struct staged_update pending_update;</span><br><span class="line">&#125;;</span><br><span class="line">  /* </span><br><span class="line">   * CCP state per connection. </span><br><span class="line">   * impl is datapath-specific, the rest are internal to libccp</span><br><span class="line">   * for example, the linux kernel datapath uses impl to store a pointer to struct sock</span><br><span class="line">   */</span><br><span class="line">  struct ccp_connection &#123;</span><br><span class="line">      // the index of this array element</span><br><span class="line">      u16 index;</span><br><span class="line"></span><br><span class="line">      u32 last_create_msg_sent;</span><br><span class="line"></span><br><span class="line">      // struct ccp_primitives is large; as a result, we store it inside ccp_connection to avoid</span><br><span class="line">      // potential limitations in the datapath</span><br><span class="line">      // datapath should update this before calling ccp_invoke()</span><br><span class="line">      struct ccp_primitives prims;</span><br><span class="line"></span><br><span class="line">      // constant flow-level information</span><br><span class="line">      struct ccp_datapath_info flow_info;</span><br><span class="line"></span><br><span class="line">      // private libccp state for the send machine and measurement machine</span><br><span class="line">      void *state;</span><br><span class="line"></span><br><span class="line">      // datapath-specific per-connection state</span><br><span class="line">      void *impl;</span><br><span class="line">  &#125;;</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>4.2 ccp_invoke 函数位于ccp.c文件，分析ccp_invoke函数的执行流程：<br>  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">//Should be called along with the ACK clock.</span><br><span class="line">//will invoke the send and measurement machines.</span><br><span class="line">state = get_ccp_priv_state(conn);//获取connection的state</span><br><span class="line">ok = send_conn_create(datapath, conn);//ccp.c, send create msg, 发送的消息内容，见下文</span><br><span class="line">//至此datapath与userspace建立了连接</span><br></pre></td></tr></table></figure></p>
+<p>  4.3 如果已经建立连接，从connnection中取出cwnd， snd_rate的值，放入相关的寄存器。检测相关相关寄存器的状态，impl_is_pending，若为真，写回相应的值.<br>  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"> if (state-&gt;pending_update.impl_is_pending[CWND_REG]) &#123;</span><br><span class="line">    DBG_PRINT(&quot;[sid=%d] Applying staged field update: cwnd reg &lt;- %llu\n&quot;, conn-&gt;index, state-&gt;pending_update.impl_registers[CWND_REG]);</span><br><span class="line">    state-&gt;registers.impl_registers[CWND_REG] = state-&gt;pending_update.impl_registers[CWND_REG];</span><br><span class="line">    if (state-&gt;registers.impl_registers[CWND_REG] != 0) &#123;</span><br><span class="line">        datapath-&gt;set_cwnd(datapath, conn, state-&gt;registers.impl_registers[CWND_REG]);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ok = state_machine(conn);// 进入状态机</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">//发送的消息格式</span><br><span class="line">    struct CreateMsg cr = &#123;</span><br><span class="line">        .init_cwnd = conn-&gt;flow_info.init_cwnd,</span><br><span class="line">        .mss = conn-&gt;flow_info.mss,</span><br><span class="line">        .src_ip = conn-&gt;flow_info.src_ip,</span><br><span class="line">        .src_port = conn-&gt;flow_info.src_port,</span><br><span class="line">        .dst_ip = conn-&gt;flow_info.dst_ip,</span><br><span class="line">        .dst_port = conn-&gt;flow_info.dst_port,</span><br><span class="line">    &#125;;</span><br></pre></td></tr></table></figure>
+<p>4.4 进入machine.c ，分析state_machine函数。从connetciton中提取出state,从state中提取出program, 通过 process_expression()函数计算，将计算结果写入相关寄存器。 根据寄存器的结果，选择将相关的计算结果写入相应的地方。 即修改cwnd， rate_abs, 或者将测量结果通过函数 send_measurement（）发送给ccp的userspace。</p>
+<ol>
+<li>接下来分析一下kernel space 收到从user spcace中的消息时的行为：<br>定位 ccp.c, 函数 ccp_read_msg(),可以发现回传的消息类型有三种，具体可见文件libcpp/serialize.c/read_header函数， 分别为INSTALL_EXPR、UPDATE_FIELDS、CHANGE_PROG三种类型。<br>INSTALL_EXPR：INSTALL_EXPR message is for all flows, not a specific connection.<br>安装program, 执行datapath_program_install函数。<br>datapath_program_install函数: saves a new datapath program into the array of datapath programs； returns index into datapath program array where this program is stored； if there is no more space, returns -1； <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">/* Callback to pass to IPC for incoming messages.</span><br><span class="line"> * Cannot take ccp_connection as an argument, since it&apos;s a callback.</span><br><span class="line"> * Therefore, must look up ccp_connction from socket_id.</span><br><span class="line"> * buf: the received message, of size bufsize.</span><br><span class="line"> */</span><br><span class="line">int ccp_read_msg(</span><br><span class="line">    char *buf,</span><br><span class="line">    int bufsize</span><br><span class="line">);</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>分析测量结果的得出与汇报，从下面代码段可以看出，测量结果存在 report registers中，通过检测 SHOULD_REPORT_REG 标志来决定是否发送测量结果给ccp user space.<br>    <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">if (state-&gt;registers.impl_registers[SHOULD_REPORT_REG]) &#123;</span><br><span class="line">        send_measurement(conn, program-&gt;program_uid, state-&gt;registers.report_registers, program-&gt;num_to_return);</span><br><span class="line">        reset_state(state);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure></p>
+<p>通过分析位于 machine.c 文件中的一下两个函数，可以发现这两个函数通过寄存器间的运算来进行相关测量工作，测量依据为program。<br>    <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">int process_expression(int expr_index, struct ccp_priv_state *state, struct ccp_primitives* primitives);</span><br><span class="line">int process_instruction(int instr_index, struct ccp_priv_state *state, struct ccp_primitives* primitives)</span><br><span class="line">//其他</span><br><span class="line">struct Register &#123;</span><br><span class="line">    u8 type;</span><br><span class="line">    int index;</span><br><span class="line">    u64 value;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
+<p>Programe是通过user space下发过来的，前文已经分析了下发流程，给出program的结构：<br>    <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">/*  Entire datapath program</span><br><span class="line"> *  a set of expressions (conditions)</span><br><span class="line"> *  a set of instructions</span><br><span class="line"> */</span><br><span class="line">struct DatapathProgram &#123;</span><br><span class="line">    u8 num_to_return;</span><br><span class="line">    u16 index; // index in array</span><br><span class="line">    u32 program_uid; // program uid assigned by CCP agent</span><br><span class="line">    u32 num_expressions;</span><br><span class="line">    u32 num_instructions;</span><br><span class="line">    struct Expression expressions[MAX_EXPRESSIONS];</span><br><span class="line">    struct Instruction64 fold_instructions[MAX_INSTRUCTIONS];</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
+<h3 id="Portus-控制平面，用户态-代码阅读"><a href="#Portus-控制平面，用户态-代码阅读" class="headerlink" title="Portus(控制平面，用户态) 代码阅读"></a>Portus(控制平面，用户态) 代码阅读</h3><h5 id="Portus-简介"><a href="#Portus-简介" class="headerlink" title="Portus 简介"></a><a href="https://github.com/ccp-project/portus" target="_blank" rel="noopener">Portus</a> 简介</h5><p>Portus is an implementation of a congestion control plane (CCP). It is a library that can be used to write new congestion control algorithms in user-space. Congestion control algorithm implementations live in independent crates which use this library for common functionality. Each algorithm crate provides a binary which runs a CCP with that algorithm activated.<br>注：<a href="https://docs.rs/portus/0.5.0/portus/" target="_blank" rel="noopener">Portus</a>已有相关文档可供参考   </p>
+<h5 id="libccp-简介"><a href="#libccp-简介" class="headerlink" title="libccp 简介"></a><a href="https://github.com/ccp-project/libccp" target="_blank" rel="noopener">libccp</a> 简介</h5><p>Libccp is an implementation of the core functionality necsesary for a datapath to communicate with a CCP process. The datapath is responsible for providing a few callback functions for modifying state internal to the datapath (e.g. congestion window or packet pacing rate) and a few utility functions and libccp handles everything else. The instructions below detail all of the steps necessary to make a datapath CCP compatible.</p>
+<h4 id="Reno算法在User-Space的实现"><a href="#Reno算法在User-Space的实现" class="headerlink" title="Reno算法在User Space的实现"></a>Reno算法在User Space的实现</h4><ol>
+<li>文件定位: /src/reno.rs 该文件定义了 Reno算法类， 包括 set_cwnd increase reduction等函数；</li>
+<li><p>/bin/src/reno.rs，该文件是Reno算法的入口，给出Reno算法的相关配置。调用公共运行接口运行reno算法。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ccp_generic_cong_avoid::start::&lt;Reno&gt;(ipc.as_str(), log, cfg);</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>/src/bin_helper.rs, 分析start函数。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">start</span></span>&lt;T: GenericCongAvoidAlg&gt;(ipc: &amp;<span class="built_in">str</span>, log: slog::Logger, cfg: GenericCongAvoidConfig)</span><br><span class="line">        <span class="string">"netlink"</span> =&gt; &#123;</span><br><span class="line">            <span class="keyword">use</span> portus::ipc::netlink::Socket;</span><br><span class="line">            <span class="keyword">let</span> b = Socket::&lt;Blocking&gt;::new()</span><br><span class="line">                .map(|sk| BackendBuilder &#123;sock: sk&#125;)</span><br><span class="line">                .expect(<span class="string">"ipc initialization"</span>);</span><br><span class="line">            portus::run::&lt;_, GenericCongAvoid&lt;_, T&gt;&gt;(</span><br><span class="line">                b,</span><br><span class="line">                &amp;portus::Config &#123;</span><br><span class="line">                    logger: <span class="literal">Some</span>(log),</span><br><span class="line">                    config: cfg,</span><br><span class="line">                &#125;</span><br><span class="line">            ).unwrap();</span><br><span class="line">        &#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>/src/lib.rs 文件， 分析run函数。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">pub fn run&lt;I, U&gt;(backend_builder:         BackendBuilder&lt;I&gt;, cfg: &amp;Config&lt;I, U&gt;) -&gt; Result&lt;!&gt;</span><br><span class="line">fn run_inner&lt;I, U&gt;(backend_builder: BackendBuilder&lt;I&gt;, cfg: &amp;Config&lt;I, U&gt;, continue_listening: Arc&lt;atomic::AtomicBool&gt;)  -&gt; Result&lt;()&gt;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>定位 portus/src/ipc/netlink.rs</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">  use super::Blocking;</span><br><span class="line">impl super::Ipc for Socket&lt;Blocking&gt; &#123;</span><br><span class="line">    fn recv(&amp;self, buf: &amp;mut [u8]) -&gt; Result&lt;usize&gt; &#123;</span><br><span class="line">        self.__recv(buf, nix::sys::socket::MsgFlags::empty())</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    fn send(&amp;self, buf: &amp;[u8]) -&gt; Result&lt;()&gt; &#123;</span><br><span class="line">        self.__send(buf)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    fn close(&amp;self) -&gt; Result&lt;()&gt; &#123;</span><br><span class="line">        self.__close()</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>文件定位 ccp_generic_cong_avoid/src/lib.rs,以下代码给出了初始化时datapath向用户空间汇报测量结果的方法</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">impl</span>&lt;T: Ipc, A: GenericCongAvoidAlg&gt; GenericCongAvoid&lt;T, A&gt; &#123;</span><br><span class="line"> <span class="function"><span class="keyword">fn</span> <span class="title">install_datapath_interval</span></span>(&amp;<span class="keyword">self</span>, interval: time::Duration) -&gt; Scop&#123;&#125;</span><br><span class="line"> <span class="function"><span class="keyword">fn</span> <span class="title">install_datapath_interval_rtt</span></span>(&amp;<span class="keyword">self</span>) -&gt; Scope &#123;&#125;</span><br><span class="line"> <span class="function"><span class="keyword">fn</span> <span class="title">install_ack_update</span></span>(&amp;<span class="keyword">self</span>) -&gt; Scope &#123;&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>以下代码指明了用户空间收到测量结果时的反应:<br><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">impl</span>&lt;T: Ipc, A: GenericCongAvoidAlg&gt; CongAlg&lt;T&gt; <span class="keyword">for</span> GenericCongAvoid&lt;T, A&gt; &#123;&#125;</span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">on_report</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, _sock_id: <span class="built_in">u32</span>, m: Report)</span><br></pre></td></tr></table></figure></p>
+<ol>
+<li>中间分析， 到目前为止，已基本能掌握整个系统的工作流程，但是对于每个小模块的具体流程还有待梳理清楚。下面将着重分析几个子模块的工作流程。</li>
+</ol>
+<h4 id="CCP系统是如何实现测量的"><a href="#CCP系统是如何实现测量的" class="headerlink" title="CCP系统是如何实现测量的?"></a>CCP系统是如何实现测量的?</h4><p>即对于每一个测量元素（rtt,ack，loss等）是如何实现测量的，在ccp系统中，这些测量元素被称为primitives.<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * Primitive registers</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  ACK_BYTES_ACKED          0</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  ACK_BYTES_MISORDERED     1</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  ACK_ECN_BYTES            2</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  ACK_ECN_PACKETS          3</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  ACK_LOST_PKTS_SAMPLE     4</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  ACK_NOW                  5</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  ACK_PACKETS_ACKED        6</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  ACK_PACKETS_MISORDERED   7</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  FLOW_BYTES_IN_FLIGHT     8</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  FLOW_BYTES_PENDING       9</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  FLOW_PACKETS_IN_FLIGHT   10</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  FLOW_RATE_INCOMING       11</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  FLOW_RATE_OUTGOING       12</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  FLOW_RTT_SAMPLE_US       13</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span>  FLOW_WAS_TIMEOUT         14</span></span><br></pre></td></tr></table></figure></p>
+<p>定位函数 tcp_ccp.c 文件中的 load_primitives 函数。在这个函数中，给出了如何测量primitives, 其取决于重要的结构体 sock，需要详细分析。<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">load_primitives</span><span class="params">(struct sock *sk, <span class="keyword">const</span> struct rate_sample *rs)</span></span>;</span><br></pre></td></tr></table></figure></p>
+<p>上述函数的结构体来自于<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">tcp_ccp_cong_control</span><span class="params">(struct sock *sk, <span class="keyword">const</span> struct rate_sample *rs)</span></span>;</span><br></pre></td></tr></table></figure></p>
+<p>而上述函数来自于注册函数的接口<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">tcp_congestion_ops</span> <span class="title">tcp_ccp_congestion_ops</span> = &#123;</span></span><br><span class="line">	<span class="comment">//...</span></span><br><span class="line">    .cong_control = tcp_ccp_cong_control,<span class="comment">//cong_control 提供给tcp_ccp_cong_contro 需要的参数</span></span><br><span class="line">    	<span class="comment">//	...</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
+<p>至此，我们知道了测量primitives时用到的关键数据结构来自于内核。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/03/18/Portus/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1438,7 +1673,7 @@ writer-&gt;Write(response);<span class="comment">//结果写回client端</span>
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">7</span>
+                  <span class="site-state-item-count">8</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -1460,7 +1695,7 @@ writer-&gt;Write(response);<span class="comment">//结果写回client端</span>
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">8</span>
+                  <span class="site-state-item-count">12</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
