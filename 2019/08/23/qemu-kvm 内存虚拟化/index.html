@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="qemu,kvm,虚拟化," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="#内存虚拟化 内存初始化qemu的虚拟地址作为guest的物理地地址，guest运行在虚拟的地址空间，但终究是存在物理内存上的，所以要建立虚拟地址空间与物理地址之间的映射。另外，必须要为虚拟机运行程序提供安全的、隔离的运行环境，避免虚拟机之间、虚拟机与宿主机之间的相互干扰。qemu会提前为guest申请好虚拟地址，只有真正需要的时候，通过产生页中断申请物理地址，并且建立页表产生对应关系。 gues">
+<meta name="keywords" content="qemu,kvm,虚拟化">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Qemu-kvm memory 虚拟化">
+<meta property="og:url" content="http://yoursite.com/2019/08/23/qemu-kvm 内存虚拟化/index.html">
+<meta property="og:site_name" content="Tian-Daye on the Way">
+<meta property="og:description" content="#内存虚拟化 内存初始化qemu的虚拟地址作为guest的物理地地址，guest运行在虚拟的地址空间，但终究是存在物理内存上的，所以要建立虚拟地址空间与物理地址之间的映射。另外，必须要为虚拟机运行程序提供安全的、隔离的运行环境，避免虚拟机之间、虚拟机与宿主机之间的相互干扰。qemu会提前为guest申请好虚拟地址，只有真正需要的时候，通过产生页中断申请物理地址，并且建立页表产生对应关系。 gues">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://i.imgur.com/hSaae0d.png">
+<meta property="og:image" content="https://i.imgur.com/Sump8jS.png">
+<meta property="og:image" content="https://i.imgur.com/QUren0q.jpg">
+<meta property="og:updated_time" content="2019-08-23T03:09:14.247Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Qemu-kvm memory 虚拟化">
+<meta name="twitter:description" content="#内存虚拟化 内存初始化qemu的虚拟地址作为guest的物理地地址，guest运行在虚拟的地址空间，但终究是存在物理内存上的，所以要建立虚拟地址空间与物理地址之间的映射。另外，必须要为虚拟机运行程序提供安全的、隔离的运行环境，避免虚拟机之间、虚拟机与宿主机之间的相互干扰。qemu会提前为guest申请好虚拟地址，只有真正需要的时候，通过产生页中断申请物理地址，并且建立页表产生对应关系。 gues">
+<meta name="twitter:image" content="https://i.imgur.com/hSaae0d.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2019/08/23/qemu-kvm 内存虚拟化/"/>
+
+
+
+
+
+  <title>Qemu-kvm memory 虚拟化 | Tian-Daye on the Way</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Tian-Daye on the Way</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/08/23/qemu-kvm 内存虚拟化/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Xingguo">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tian-Daye on the Way">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Qemu-kvm memory 虚拟化</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-08-23T11:09:37+08:00">
+                2019-08-23
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Software/" itemprop="url" rel="index">
+                    <span itemprop="name">Software</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2019/08/23/qemu-kvm 内存虚拟化/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count disqus-comment-count"
+                        data-disqus-identifier="2019/08/23/qemu-kvm 内存虚拟化/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>#内存虚拟化</p>
+<h2 id="内存初始化"><a href="#内存初始化" class="headerlink" title="内存初始化"></a>内存初始化</h2><p><strong>qemu的虚拟地址作为guest的物理地地址</strong>，guest运行在虚拟的地址空间，但终究是存在物理内存上的，所以要建立虚拟地址空间与物理地址之间的映射。另外，必须要为虚拟机运行程序提供安全的、隔离的运行环境，避免虚拟机之间、虚拟机与宿主机之间的相互干扰。qemu会提前为guest申请好虚拟地址，只有真正需要的时候，通过产生页中断申请物理地址，并且建立页表产生对应关系。</p>
+<h3 id="guest对内存的要求"><a href="#guest对内存的要求" class="headerlink" title="guest对内存的要求"></a>guest对内存的要求</h3><p>对操作系统从加载到执行的情况来分析，它需要使用一个从0开始的、连续的物理地址空间，如BIOS会在物理内存0 ~ 1K的内存空间内创建中断向量表，之后将启动引导程序加载到物理内存0x07C00的位置，内核代码最终也是从内存1M开始的位置加载并执行；在有虚拟机运行的硬件平台上，唯一的物理内存是用于加载、运行宿主机的操作系统的，因此Guest OS是不能直接在物理内存上加载、运行的，唯一可行的办法是为Guest OS 提供一个虚拟的物理内存空间，我们称之为虚拟机物理地址空间，这个虚拟的内存空间是从0开始的、连续的内存空间，也是Guest OS能够感知和管理的虚拟物理内存单元，Guest OS在这个虚拟机物理内存空间的基础上为应用程序分配内存空间，创建页表等；<br>关键名词：<br>gva :  Guest Virtual Address      虚拟机线性地址<br>gpa :  Guest Physical Address     虚拟机物理地址<br>gfn :  Guest Page Frame Number    虚拟机物理地址空间中一个物理页对应的页帧号<br>hva :  Host Virtual Address       宿主机线性地址<br>hpa :  Host Physical Address      宿主机物理地址<br>hfn :  Host Page Frame Number   宿主机物理地址空间中一个物理页对应的页帧号<br>pte :  Page Table Entry          页表项(包含页表的起始地址及相应访问权限位)<br>gpte :  Guest Page Table Entry    虚拟机页表项<br>spte :  Shadow Page Table Entry   EPT表中的页表项  </p>
+<p>Linux 内核中采用四级页表：<br>页全局目录 (Page Global Directory, pgd)；<br>页上级目录 (Page Upper Directory, pud)；<br>页中间目录 (Page Middle Directory, pmd)；<br>页表 (Page Table, pt)。  </p>
+<p>task_struct 中的 mm_struct 对象用于管理该进程（或者线程共享的）页表。准确地说，mm_struct 中的 pgd 指针指向着该进程的页全局目录。</p>
+<h3 id="Qemu的内存布局"><a href="#Qemu的内存布局" class="headerlink" title="Qemu的内存布局"></a>Qemu的内存布局</h3><ol>
+<li><p>关键数据结构罗列<br> AddressSpace、 MemoryRegion、 RAMBlock、 FlatView、 MemoryRegionSection、 KVMSlot、AddressSpaceDispatch、 kvm_userspace_memory_region。</p>
+</li>
+<li><p>全局内存数据结构<br> AddressSpace：address_space_memory、address_space_io；<br> MemoryRegion：system_memory、 system_io；</p>
+</li>
+<li>从数据结构间的关系分析Qemu的内存布局<br> qemu中用AddressSpace用来表示CPU/设备看到的内存，两个全局 Address_sapce: address_space_memory、 address_space_io，地址空间之间通过链表连接起来;在一个全局地址空间下挂着一个全局的memoryRegion：system_memory、 system_io。在Qemu中通过一棵memoryRegion树的形式管理着不同的内存区间。MemoryRegion又可分为container, alias, subregions，这些类型用来组织管理整个内存空间。另外，涉及到内存的不同用途，mr又可分为ram， rom, mmio等。 AddressSpace构建了虚拟机的一部分地址空间，而挂载在AddressSpace下的根mr及其子树瓜分了该地址空间。利用 Mr树形结构，将地址空间划分不同的内存域进行分域管理。</li>
+<li><p>从代码流程分析qemu内存布局<br> 4.1 地址空间初始化<br> 两个全局AS：address_space_memory， address_space_io;<br> 两个全局MR：system_memory、 system_io</p>
+<p> 4.11 为AS注册回调函数</p>
+<pre><code>kvm_memory_listener_register(s, &amp;s-&gt;memory_listener,&amp;address_space_memory, 0);
+memory_listener_register(&amp;kvm_io_listener,&amp;address_space_io);
+</code></pre><p> 4.12 初始化地址空间</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">main -&gt; cpu_exec_init_all -&gt; memory_map_init-&gt;memory_region_init / address_space_init</span><br></pre></td></tr></table></figure>
+<pre><code>为全局 system\_memory、 system\_io MR分配内存，分别建立全局MR和全局AS的连接。初始化MR和AS的相关成员变量，并且为AS添加与MR相关事件（add, commit）的侦听函数，最后把不同的AS分别加入到全局的address\_spaces链表中，最后调用 memory\_region\_transaction\_commit() 提交本次修改.
+</code></pre><p> 4.13 申请内存</p>
+<pre><code>以申请system_memory为例，描述内存申请与管理的流程。 
+
+memory_region_allocate_system_memory - memory_region_init_alias - memory_region_add_subregion
+    |
+allocate_system_memory_nonnuma
+    |
+memory_region_init_ram
+    |
+qemu_ram_alloc
+    |
+ram_block_add
+    |
+phys_mem_alloc //static void *(*phys_mem_alloc)(size_t size, uint64_t *align) = qemu_anon_ram_alloc;
+    |
+qemu_anon_ram_alloc // include/qemu/osdep.h
+qemu_ram_mmap
+mmap       
+</code></pre><p> 说明：memory_region_allocate_\system_memory 为一个mr申请了RAM;</p>
+<pre><code> memory\_region\_init\_alias: 将上述mr RAM 分成了低4G的内存和高4G内存的alias.
+ memory\_region\_add\_subregion:将alias挂载到system memory下面。
+
+void pc_memory_init(PCMachineState *pcms,
+                    MemoryRegion *system_memory,
+                    MemoryRegion *rom_memory,
+                    MemoryRegion **ram_memory)
+{
+    memory_region_allocate_system_memory(ram, NULL, &quot;pc.ram&quot;,
+                                         machine-&gt;ram_size);//为mr分配存储空间
+    *ram_memory = ram;
+    ram_below_4g = g_malloc(sizeof(*ram_below_4g));
+    memory_region_init_alias(ram_below_4g, NULL, &quot;ram-below-4g&quot;, ram,0, pcms-&gt;below_4g_mem_size);//将 mr ram从0开始偏移的4G设置成&quot;ram-below-4g&quot; alias也是一个mr，但是其ram block为NULL
+    memory_region_add_subregion(system_memory, 0, ram_below_4g);//将ram_below_4G挂在system memory下
+
+    if (pcms-&gt;above_4g_mem_size &gt; 0) {
+        ram_above_4g = g_malloc(sizeof(*ram_above_4g));
+        memory_region_init_alias(ram_above_4g, NULL, &quot;ram-above-4g&quot;, ram,
+                                 pcms-&gt;below_4g_mem_size,
+                                 pcms-&gt;above_4g_mem_size);
+        memory_region_add_subregion(system_memory, 0x100000000ULL,
+                                    ram_above_4g);
+    }
+}
+</code></pre><p> 分配后的内存模型如下：<br> <img src="https://i.imgur.com/hSaae0d.png" alt="qemu内存布局"><br> 当在qemu中的内存布局发生变化后，需要将这个变化同步到kvm中，这个过程实在上述函数 memory_region_add_subregion 中实现的。</p>
+<pre><code>memory_region_add_subregion -&gt; memory_region_add_subregion_common -&gt; memory_region_update_container_subregions
+-&gt; memory_region_transaction_commit 
+</code></pre><p> memory_region_add_subregion_common 将subrigion的container设置为system_memory，置其addr字段为offset，即在全局MR中的偏移。然后就按照优先级顺序把subregion插入到system_memory的subregions链表中。之后调用函数 memory_region_transaction_commit 进行内存拓扑的同步。</p>
+<pre><code>memory_region_transaction_commit -&gt; address_space_update_topology -&gt; address_space_update_topology_pass 
+</code></pre><p>对于每个address_space，调用address_space_update_topology()执行更新。里面涉及两个重要的函数generate_memory_topology和address_space_update_topology_pass。前者对于一个给定的MR，生成其对应的FlatView，而后者则根据oldview和newview对当前视图进行更新。</p>
+<pre><code>struct FlatView {
+    struct rcu_head rcu;
+    unsigned ref;
+    FlatRange *ranges;//flatrange 数组
+    unsigned nr;//flat range 数目
+    unsigned nr_allocated;
+};
+/* Range of memory in the global map.  Addresses are absolute. */
+struct FlatRange {
+    MemoryRegion *mr;
+    hwaddr offset_in_region;//全局mr中的offset,GPA
+    AddrRange addr;//地址区间，HVA
+    uint8_t dirty_log_mask;
+    bool romd_mode;
+    bool readonly;
+};
+
+FlatView *old_view = address_space_get_flatview(as)//从as的current_map中获取
+FlatView *new_view = generate_memory_topology(as-&gt;root);
+</code></pre><p>如何生成一个新的FlatView:  </p>
+<pre><code>generate_memory_topology -&gt; render_memory_region+flatview_simplify
+</code></pre><p>在获取了新旧两个FlatView之后，调用了两次address_space_update_topology_pass()函数，首次调用主要在于删除原来的视图，而后者主要在于添加新的视图。之后设置as-&gt;current_map = new_view。并对old_view减少引用，当引用计数为1时会被删除。</p>
+<pre><code>address_space_update_topology_pass
+        |
+MEMORY_LISTENER_UPDATE_REGION//将flatrange转化为 MemoryRegionSection
+        |
+region_add(kvm_region_add) / region_del(kvm_region_del)
+        |
+kvm_set_phys_mem// 将 MemoryRegionSection 记录到 KVMSlot中
+        |
+kvm_userspace_memory_region//将 slot中的数据记录到 kvm_userspace_memory_region中，然后调用 KVM_SET_USER_MEMORY_REGION 进入kvm中，kvm_userspace_memory_region 这个结构qemu和kvm共同拥有
+</code></pre><p>MemoryRegionSection -&gt; KVMSlot</p>
+</li>
+</ol>
+<pre><code>    /**
+ * MemoryRegionSection: describes a fragment of a #MemoryRegion
+ *
+ * @mr: the region, or %NULL if empty
+ * @address_space: the address space the region is mapped in
+ * @offset_within_region: the beginning of the section, relative to @mr&apos;s start
+ * @size: the size of the section; will not exceed @mr&apos;s boundaries
+ * @offset_within_address_space: the address of the first byte of the section
+ *     relative to the region&apos;s address space
+ * @readonly: writes to this section are ignored
+ */
+struct MemoryRegionSection {
+    MemoryRegion *mr;
+    AddressSpace *address_space;
+    hwaddr offset_within_region;
+    Int128 size;
+    hwaddr offset_within_address_space;
+    bool readonly;
+};
+typedef struct KVMSlot
+{
+    hwaddr start_addr;//gpa
+    ram_addr_t memory_size;
+    void *ram;//hva
+    int slot;
+    int flags;
+} KVMSlot;
+</code></pre><p>MemoryRegionSection -&gt; KVMslot?</p>
+<blockquote>
+<p>根据 region 的起始 HVA(memory_region_get_ram_ptr) + region section 在 region 中的偏移量 (offset_within_region) + 页对齐修正 (delta) 得到 section 真正的起始 HVA，填入 userspace_addr<br>在 memory_region_get_ram_ptr 中，如果当前 region 是另一个 region 的 alias，则会向上追溯，一直追溯到非 alias region(实体 region) 为止。将追溯过程中的 alias_offset 加起来，可以得到当前 region 在实体 region 中的偏移量。<br>由于实体 region 具有对应的 RAMBlock，所以调用 qemu_map_ram_ptr ，将实体 region 对应的 RAMBlock 的 host 和总 offset 加起来，得到当前 region 的起始 HVA。<br>根据 region section 在 AddressSpace 内的偏移量 (offset_within_address_space) + 页对齐修正 (delta) 得到 section 真正的 GPA，填入 start_addr<br>根据 region section 的大小 (size) - 页对齐修正 (delta) 得到 section 真正的大小，填入 memory_size    </p>
+</blockquote>
+<p>KVMSlot -&gt; kvm_userspace_memory_region?</p>
+<pre><code>    mem.slot = slot-&gt;slot | (kml-&gt;as_id &lt;&lt; 16);
+    mem.guest_phys_addr = slot-&gt;start_addr;
+    mem.userspace_addr = (unsigned long)slot-&gt;ram;
+    mem.flags = slot-&gt;flags;
+
+/* for KVM_SET_USER_MEMORY_REGION */
+struct kvm_userspace_memory_region {
+    __u32 slot;//slot编号
+    __u32 flags;//标志位，是否需要追踪对该页的写、是否可读等
+    __u64 guest_phys_addr;//gpa
+    __u64 memory_size; /* bytes,内存大小 */
+    __u64 userspace_addr; /* start of the userspace allocated memory ，HVA*/
+}//
+</code></pre><p>在qemu中的整个拓扑图如下，至此，内存管理在Qemu中的流程结束。<br><img src="https://i.imgur.com/Sump8jS.png" alt="qemu内存模型传递图"></p>
+<p>在Qemu中调用kvm提供的kvm_userspace_memory_region API进行访问，函数链如下：</p>
+<pre><code>kvm_vm_ioctl_set_memory_region() -&gt; kvm_set_memory_region(kvm, mem) -&gt; __kvm_set_memory_region(kvm, mem)
+</code></pre><p>两个关键数据结构：</p>
+<pre><code>    struct kvm_userspace_memory_region {
+    __u32 slot;//slot编号
+    __u32 flags;//标志位，是否需要追踪对该页的写、是否可读等
+    __u64 guest_phys_addr;//gpa
+    __u64 memory_size; /* bytes,内存大小 */
+    __u64 userspace_addr; /* start of the userspace allocated memory ，HVA*/
+}//
+    struct kvm_memory_slot {
+    gfn_t base_gfn;// slot的起始gfn
+    unsigned long npages;//page数量
+    unsigned long *dirty_bitmap;//脏页记录表
+    struct kvm_arch_memory_slot arch;//结构相关，包括 rmap 和 lpage_info 等
+    unsigned long userspace_addr;//对应的起始 HVA
+    u32 flags;
+    short id;
+};
+</code></pre><p>__kvm_set_memory_region: kvm_userspace_memory_region -&gt; kvm_memory_slot</p>
+<pre><code>常规检查，内存大小是否小于一页等。
+调用id_to_memslot来获得kvm-&gt;memslots中对应的memslot指针;
+设置memslot的base_gfn、npages等域;
+处理和已经存在的memslots的重叠;
+调用install_new_memslots装载新的memslot;
+将会根据新的npages变量和原来的npages变量来判断用户的操作属于哪一类：
+    KVM_MR_CREATE：现在有页而原来没有，则为新增内存区域，创建并初始化 slot;
+    KVM_MR_DELETE： 现在没有页而原来有，则为删除内存区域，将 slot 标记为 KVM_MEMSLOT_INVALID;
+    KVM_MR_FLAGS_ONLY / KVM_MR_MOVE:现在有页且原来也有，则为修改内存区域，如果只有 flag 变了，则为     KVM_MR_FLAGS_ONLY ，目前只有可能是 KVM_MEM_LOG_DIRTY_PAGES ，则根据 flag 选择是要创建还是释放     dirty_bitmap;如果 GPA 有变，则为 KVM_MR_MOVE ，需要进行移动。其实就直接将原来的 slot 标记为     KVM_MEMSLOT_INVALID，然后添加新的.
+</code></pre><p>至此，从qemu到kvm的整个内存管理体系建立起来了，从qemu中将AS以flatview的形式展示出来，然后翻译成为slot，然后以kvm_userspace_memory_region 为中介传递至kvm,该结构记录了GPA-&gt;HVA，最后在kvm中以kvm_memory_slot的形式保存下来。但是在申请内存之后并没有建立与物理页的连接，该部分的连接工作将由kvm来处理。guest在访问内存的时候，首先通过guest内部的mmu建立页表转换机制，当发现物理页不可访问的时候发生EPT Violation。</p>
+<h3 id="EPT-Violation"><a href="#EPT-Violation" class="headerlink" title="EPT Violation"></a>EPT Violation</h3><p>当 Guest 第一次访问某个页面时，由于没有 GVA 到 GPA 的映射，触发 Guest OS 的 page fault,于是 Guest OS 会建立对应的 pte 并修复好各级页表，最后访问对应的 GPA。由于没有建立 GPA 到 HVA 的映射，于是触发 EPT Violation，VMEXIT 到 KVM。 KVM 在 vmx_handle_exit 中执行 kvm_vmx_exit_handlers[exit_reason]，发现 exit_reason 是 EXIT_REASON_EPT_VIOLATION ，因此调用 handle_ept_violation 。<br>首先看一下调用的函数链，从整体感受一下。</p>
+<pre><code>handle_ept_violation -&gt; kvm_mmu_page_fault(gpa) -&gt; vcpu-&gt;arch.mmu.page_fault(tdp_page_fault) ;
+</code></pre><p>函数handle_ept_violation中，vmcs_readl(EXIT_QUALIFICATION)获取 EPT 退出的原因,EXIT_QUALIFICATION 是 Exit reason 的补充；vmcs_read64(GUEST_PHYSICAL_ADDRESS)获取发生缺页的 GPA；根据 exit_qualification 内容得到 error_code，可能是 read fault / write fault / fetch fault / ept page table is not present；</p>
+<p>tdp_page_fault 函数是主要的处理过程：</p>
+<pre><code>static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
+          bool prefault)
+{
+    gfn_t gfn = gpa &gt;&gt; PAGE_SHIFT;//得到子机的gfn
+    force_pt_level = !check_hugepage_cache_consistency(vcpu, gfn,
+                               PT_DIRECTORY_LEVEL);
+    level = mapping_level(vcpu, gfn, &amp;force_pt_level);//计算gfn在页表中所属level，4kB下通常为1，大页通常为2，物理页为大页时，3级页表
+    if (fast_page_fault(vcpu, gpa, level, error_code))///尝试快速修复page fault,让CPU重新尝试发生page fault的操作
+        return RET_PF_RETRY;
+
+    mmu_seq = vcpu-&gt;kvm-&gt;mmu_notifier_seq;
+    smp_rmb();
+
+    if (try_async_pf(vcpu, prefault, gfn, gpa, &amp;pfn, write, &amp;map_writable))
+        return RET_PF_RETRY;
+
+    r = __direct_map(vcpu, write, map_writable, level, gfn, pfn, prefault);
+
+    return r;
+}
+</code></pre><p>tdp_page_fault()<br>    -&gt; mapping_level //计算页表级别，4kB下通常为1，大页通常为2，物理页为大页时，3级页表<br>    -&gt; fast_page_fault()//尝试快速修复page fault,让CPU重新尝试发生page fault的操作,热迁移时的write protection导致子机的write page fault,快速修复<br>       以下情况下可执行fast page fault:</p>
+<pre><code>       - many spurious page fault due to tlb lazily flushed
+       - lots of write-protect page fault (dirty bit track for guest pte, shadow
+        page table write-protected, frame-buffer under Xwindow, migration, ...)
+-&gt; try\_async\_pf() //将gfn转化为pfn,直接请求或者异步请求，关于异步pf,可以选择是否支持，可以通过配置来决定。
+
+-&gt; try_async_pf()-&gt; kvm_vcpu_gfn_to_memslot =&gt; __gfn_to_memslot//找到gfn对应的slot
+                 -&gt; __gfn_to_pfn_memslot//寻找gfn对应的pfn,不允许io wait
+                     -&gt; __gfn_to_hva_many -&gt; __gfn_to_hva_memslot//计算gfn对应的起始 HVA,slot-&gt;userspace_addr + (gfn - slot-&gt;base_gfn) * PAGE_SIZE;
+                    -&gt; hva_to_pfn //计算 HVA 对应的 pfn，同时确保该物理页在内存中
+                        -&gt; hva_to_pfn_fast//为发生write fault的页映射writeable页
+                        -&gt; hva_to_pfn_slow//申请物理页，即为pfn赋值,可能会sleep，可能会等待swap page载入
+                -&gt; kvm_arch_setup_async_pf//支持异步
+                -&gt; __gfn_to_pfn_memslot//允许io wait
+
+-&gt; __direct_map // 更新 EPT，将新的映射关系逐层添加到 EPT 中
+
+    -&gt; for_each_shadow_entry//根据传进来的gpa进行计算，level-4页表开始，一级一级地填写相应页表项
+        -&gt; mmu_set_spte//到达level层后设置页表项
+        -&gt; is_shadow_present_pte//中间某一层页表页没有初始化时执行下列函数
+            -&gt; kvm_mmu_get_page//新建一个页表页
+            -&gt; link_shadow_page //将新建的页表页连接到上一层页表的spetp上
+                -&gt; mmu_spte_set(sptep, spte);//为当前页表项的值 (*spetp) 设置下一级页表页的 HPA
+                mmu_page_add_parent_pte(vcpu, sp, sptep)-&gt; pte_list_add//将当前项的地址 (spetp) 加入到下一级页表页的 parent_ptes 中，做反向映射
+</code></pre><p>反向映射：每一级页表的spetp指向下一级页表的HPA，同时下一级页表页的parent_ptes反向指向该级别的页表项。这样，当Host需要将guest的某个GPA对应的page移除时，可直接通过反向索引找到该gfn的相关表项进行修改；   </p>
+<p>关键函数 try_async_pf 的详细解释：<br>在该函数中首先会尝试寻找gfn对应的pfn，如果找到就返回；</p>
+<pre><code>slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
+async = false;
+//已经找到pfn，不需要异步，返回,执行过程中，如果需要IO wait,则不等待
+*pfn = __gfn_to_pfn_memslot(slot, gfn, false, &amp;async, write, writable);`
+if (!async)
+    return false; /* *pfn has correct page already */`
+
+//判断是否能够调用异步机制，如果可以就使用异步机制
+if (!prefault &amp;&amp; kvm_can_do_async_pf(vcpu)) {//判断vcpu是否允许注入中断
+    trace_kvm_try_async_get_page(gva, gfn);
+    if (kvm_find_async_pf_gfn(vcpu, gfn)) {//是否已经为该gfn建立了异步寻页机制呢？
+        trace_kvm_async_pf_doublefault(gva, gfn);
+        kvm_make_request(KVM_REQ_APF_HALT, vcpu);//暂停vcp，等待 异步过程完成后在进入guest
+        return true;
+    } else if (kvm_arch_setup_async_pf(vcpu, gva, gfn))//建立异步寻页机制，向guest注入中断
+        return true;
+}
+
+//不能使用异步机制就等待为gfn分配pfn，此时允许 IO wait
+*pfn = __gfn_to_pfn_memslot(slot, gfn, false, NULL, write, writable);
+return false;
+</code></pre><p><a href="https://git.kernel.org/pub/scm/virt/kvm/kvm.git/commit/?id=7c90705bf2a373aa238661bdb6446f27299ef489" target="_blank" rel="noopener">建立异步寻页机制</a>：</p>
+<p>kvm_arch_setup_async_pf 、kvm_async_page_present_sync 函数中分别会将 kvm_arch_setup_async_pf 和 KVM_PV_REASON_PAGE_READY 中断以  KVM_REQ_EVENT形式注入到子机，子机中会调用 do_async_page_fault 函数处理中断。总的来说，对于swapout mem，可以选择异步模式获取物理页。向guest中发送async page fault 中断，可以帮助子机切换进程，物理页取回来之后再告诉子机把原来的进程调度回来。当子机不能切换进程，此时可以暂停子机。大致流程见下图：<br><img src="https://i.imgur.com/QUren0q.jpg" alt="异步寻页机制"></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/qemu/" rel="tag"># qemu</a>
+          
+            <a href="/tags/kvm/" rel="tag"># kvm</a>
+          
+            <a href="/tags/虚拟化/" rel="tag"># 虚拟化</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/08/23/qemu-kvm CPU虚拟化/" rel="next" title="Qemu-kvm CPU虚拟化">
+                <i class="fa fa-chevron-left"></i> Qemu-kvm CPU虚拟化
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div class="comments" id="comments">
+      <div id="disqus_thread">
+        <noscript>
+          Please enable JavaScript to view the
+          <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+        </noscript>
+      </div>
+    </div>
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Xingguo</p>
+              <p class="site-description motion-element" itemprop="description">To share something Useful and Meaningful Located in MY mind</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">10</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">15</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/XingguoTian" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#内存初始化"><span class="nav-number">1.</span> <span class="nav-text">内存初始化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#guest对内存的要求"><span class="nav-number">1.1.</span> <span class="nav-text">guest对内存的要求</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Qemu的内存布局"><span class="nav-number">1.2.</span> <span class="nav-text">Qemu的内存布局</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#EPT-Violation"><span class="nav-number">1.3.</span> <span class="nav-text">EPT Violation</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Xingguo</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Pisces</a> v5.1.4</div>
+
+
+
+
+
+  <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+  <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+    
+      <script id="dsq-count-scr" src="https://https-xingguotian-github-io.disqus.com/count.js" async></script>
+    
+
+    
+      <script type="text/javascript">
+        var disqus_config = function () {
+          this.page.url = 'http://yoursite.com/2019/08/23/qemu-kvm 内存虚拟化/';
+          this.page.identifier = '2019/08/23/qemu-kvm 内存虚拟化/';
+          this.page.title = 'Qemu-kvm memory 虚拟化';
+        };
+        var d = document, s = d.createElement('script');
+        s.src = 'https://https-xingguotian-github-io.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', '' + +new Date());
+        (d.head || d.body).appendChild(s);
+      </script>
+    
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="qemu,kvm,虚拟化," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="Qemu-kvm cpu虚拟化简要分析CPU 虚拟化综述概要本文讲述的cpu虚拟化流程基于硬件辅助的虚拟化技术，硬件辅助的虚拟化技术包括Intel virtualization Technology(Intel VT) 和 AMD的 AMD virtualization(AMD V),本文以Intel VT技术为主。关于CPU虚拟化，Intel在CPU硬件层面提供了虚拟化支持 VT-x。之所以使用">
+<meta name="keywords" content="qemu,kvm,虚拟化">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Qemu-kvm CPU虚拟化">
+<meta property="og:url" content="http://yoursite.com/2019/08/23/qemu-kvm CPU虚拟化/index.html">
+<meta property="og:site_name" content="Tian-Daye on the Way">
+<meta property="og:description" content="Qemu-kvm cpu虚拟化简要分析CPU 虚拟化综述概要本文讲述的cpu虚拟化流程基于硬件辅助的虚拟化技术，硬件辅助的虚拟化技术包括Intel virtualization Technology(Intel VT) 和 AMD的 AMD virtualization(AMD V),本文以Intel VT技术为主。关于CPU虚拟化，Intel在CPU硬件层面提供了虚拟化支持 VT-x。之所以使用">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://i.imgur.com/ObPjHbj.png">
+<meta property="og:image" content="https://i.imgur.com/tocZ7ET.png">
+<meta property="og:image" content="https://i.imgur.com/GAXBsuv.png">
+<meta property="og:updated_time" content="2019-08-23T03:07:47.723Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Qemu-kvm CPU虚拟化">
+<meta name="twitter:description" content="Qemu-kvm cpu虚拟化简要分析CPU 虚拟化综述概要本文讲述的cpu虚拟化流程基于硬件辅助的虚拟化技术，硬件辅助的虚拟化技术包括Intel virtualization Technology(Intel VT) 和 AMD的 AMD virtualization(AMD V),本文以Intel VT技术为主。关于CPU虚拟化，Intel在CPU硬件层面提供了虚拟化支持 VT-x。之所以使用">
+<meta name="twitter:image" content="https://i.imgur.com/ObPjHbj.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2019/08/23/qemu-kvm CPU虚拟化/"/>
+
+
+
+
+
+  <title>Qemu-kvm CPU虚拟化 | Tian-Daye on the Way</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Tian-Daye on the Way</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/08/23/qemu-kvm CPU虚拟化/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Xingguo">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tian-Daye on the Way">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Qemu-kvm CPU虚拟化</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-08-23T11:09:29+08:00">
+                2019-08-23
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Software/" itemprop="url" rel="index">
+                    <span itemprop="name">Software</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2019/08/23/qemu-kvm CPU虚拟化/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count disqus-comment-count"
+                        data-disqus-identifier="2019/08/23/qemu-kvm CPU虚拟化/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="Qemu-kvm-cpu虚拟化简要分析"><a href="#Qemu-kvm-cpu虚拟化简要分析" class="headerlink" title="Qemu-kvm cpu虚拟化简要分析"></a>Qemu-kvm cpu虚拟化简要分析</h1><h2 id="CPU-虚拟化综述"><a href="#CPU-虚拟化综述" class="headerlink" title="CPU 虚拟化综述"></a>CPU 虚拟化综述</h2><h3 id="概要"><a href="#概要" class="headerlink" title="概要"></a>概要</h3><p>本文讲述的cpu虚拟化流程基于硬件辅助的虚拟化技术，硬件辅助的虚拟化技术包括Intel virtualization Technology(Intel VT) 和 AMD的 AMD virtualization(AMD V),本文以Intel VT技术为主。关于CPU虚拟化，Intel在CPU硬件层面提供了虚拟化支持 VT-x。之所以使用硬件辅助的主要原因在于纯软件实现全虚拟化的低效性和虚拟化漏洞。</p>
+<h3 id="VT-x技术简介"><a href="#VT-x技术简介" class="headerlink" title="VT-x技术简介"></a><a href="https://blog.csdn.net/isclouder/article/details/79179598" target="_blank" rel="noopener">VT-x技术简介</a></h3><p>通常,CPU支持ring0~ring3 4个等级，但是Linux只使用了其中的两个ring0,ring3。当CPU寄存器标示了当前CPU处于ring0级别的时候，表示此时CPU正在运行的是内核的代码。而当CPU处于ring3级别的时候，表示此时CPU正在运行的是用户级别的代码。当发生系统调用或者进程切换的时候，CPU会从ring3级别转到ring0级别。ring3级别是不允许执行硬件操作的，所有硬件操作都需要内核提供的系统调用来完成.<br>为了从CPU层面支持VT技术，Intel在 ring0~ring3 的基础上， 扩展了传统的x86处理器架构，引入了<strong>VMX</strong>模式，VMX分为root和non-root。VMM运行在VMX root模式；Guest运行在VMX non-root模式。下图给出了Intel VT-x技术的概要。<br><img src="https://i.imgur.com/ObPjHbj.png" alt="Intel VT-x"><br>在VT-x技术中引入VMCS (Virtual-Machine Control Structure) 结构，在这个结构中分别保存了客户机的执行环境和宿主机的执行环境，在发生VM-Exit时，硬件自动保存当前的上下文环境到VMCS的客户机状态域中，同时从VMCS的宿主机状态域中加载信息到CPU中；在发生VM-Entry时，CPU自动从VMCS的客户机状态域中加载信息CPU中；这样就实现了由硬件完成上下文的切换。</p>
+<h3 id="VMCS"><a href="#VMCS" class="headerlink" title="VMCS"></a>VMCS</h3><p>Vmcs是vmx操作模式下的一个重要结构，这里简要说一下。VMCS保存虚拟机的相关CPU状态，每个VCPU都有一个VMCS，每个物理CPU都有VMCS对应的寄存器（物理的），当CPU发生VM-Entry时，CPU则从VCPU指定的内存中读取VMCS加载到物理CPU上执行，当发生VM-Exit时，CPU则将当前的CPU状态保存到VCPU指定的内存中，即VMCS，以备下次VMRESUME。</p>
+<p>VMLAUCH指VM的第一次VM-Entry，VMRESUME则是VMLAUCH之后后续的VM-Entry。VMCS下有一些控制域：<br><img src="https://i.imgur.com/tocZ7ET.png" alt="VMCS 控制域"></p>
+<h2 id="vCPU的创建与初始化"><a href="#vCPU的创建与初始化" class="headerlink" title="vCPU的创建与初始化"></a>vCPU的创建与初始化</h2><p>在qemu中提供了一个线程供一个vcpu的创建与运行。</p>
+<h3 id="简述"><a href="#简述" class="headerlink" title="简述"></a>简述</h3><p>vCPU本质是一个结构体，该结构体包括 id, 虚拟寄存器组，状态信息等等。vCPU在用户层面维护一个vCPU的fd，通过ioctl前往kvm中访问，当然qemu层面也需要维护与vcpu状态相关的结构体。在 kvm层面，申请vCPU的结构体，保存相关的运行状态变量等等。    </p>
+<h3 id="Qemu-层面"><a href="#Qemu-层面" class="headerlink" title="Qemu 层面"></a>Qemu 层面</h3><p>函数调用链：</p>
+<pre><code>pc_init1 -&gt; pc_cpus_init(pcms) -&gt; pc_new_cpu -&gt; cpu_x86_create -&gt; X86_CPU -&gt; object_new -&gt; ... -&gt; x86_cpu_realizefn
+</code></pre><p>cpu_x86_creat: 生成一个x86结构的CPU结构体，存在qemu层面，记录vcpu的fd, kvm_run状态等。</p>
+<pre><code>x86_cpu_realizefn -&gt; qemu_init_vcpu(cs) -&gt; qemu_kvm_start_vcpu
+</code></pre><p>qemu_init_vcpu:初始化cpu相关属性</p>
+<pre><code>cpu-&gt;nr_cores = smp_cores;
+cpu-&gt;nr_threads = smp_threads;
+cpu-&gt;stopped = true;
+...
+if (kvm_enabled()) {
+    qemu_kvm_start_vcpu(cpu);
+</code></pre><p>qemu_kvm_start_vcpu:为cpu生成一个线程，利用该线程创建vcpu,确保vcpu创建成功</p>
+<pre><code>cpu-&gt;thread = g_malloc0(sizeof(QemuThread));
+qemu_thread_create(cpu-&gt;thread,thread_name,qemu_kvm_cpu_thread_fn,cpu, QEMU_THREAD_JOINABLE);
+while (!cpu-&gt;created) {
+    qemu_cond_wait(&amp;qemu_cpu_cond, &amp;qemu_global_mutex);//等待cpu创建成功，关于锁还需要了解
+}
+</code></pre><p>在vcpu线程中调用KVM提供的 KVM_CREATE_VCPU API到KVM中申请vcpu的创建。创建成功后，建立kvm_run的映射，这样在qemu层中也可以读出kvm中vcpu的运行状态。当然，也会调用其他API从qemu中设置vcpu，例如 cpu id， TSC等等。</p>
+<pre><code>qemu_kvm_cpu_thread_fn -&gt; kvm_init_vcpu -&gt; kvm_ioctl
+                                        -&gt; kvm_arch_init_vcpu
+</code></pre><p>qemu_kvm_cpu_thread_fn:</p>
+<pre><code>cpu-&gt;can_do_io = 1;
+current_cpu = cpu;
+
+r = kvm_init_vcpu(cpu);
+
+cpu-&gt;kvm_run = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED,
+            cpu-&gt;kvm_fd, 0);//qemu和kvm建立映射，便于信息同步
+
+/* signal CPU creation */
+cpu-&gt;created = true;//标识cpu创建成功
+qemu_cond_signal(&amp;qemu_cpu_cond);//唤醒主线程
+</code></pre><p>至此CPU的初始化流程在Qemu层面基本结束.这样，在qemu层面维护了一个CPU结构体,该结构体的kvm_run成员通过内存映射和KVM中的VCPU进行信息共享；通过kvm中提供的文件描述符和相关API，在qemu层面对kvm中的vcpu进行设置，达到用户对子机CPU进行配置的目标。</p>
+<h3 id="Kvm-层面，创建vcpu的过程"><a href="#Kvm-层面，创建vcpu的过程" class="headerlink" title="Kvm 层面，创建vcpu的过程"></a>Kvm 层面，创建vcpu的过程</h3><p>函数调用链</p>
+<pre><code>kvm_vm_ioctl_create_vcpu -&gt; kvm_arch_vcpu_create-&gt; vmx_create_vcpu -&gt; kmem_cache_zalloc
+                                                -&gt; vmx_vcpu_setup
+                         -&gt; kvm_arch_vcpu_setup -&gt; vcpu_load
+                         -&gt; create_vcpu_fd 
+</code></pre><p>关键函数简要分析：<br>VPCU创建的整体流程：</p>
+<pre><code>static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
+{
+    vcpu = kvm_arch_vcpu_create(kvm, id);
+    r = kvm_arch_vcpu_setup(vcpu);
+    kvm_get_kvm(kvm);//引用计数+1，kvm_put_kvm 引用计数减1，为0时销毁kvm
+    r = create_vcpu_fd(vcpu);//生成一个fd，返回到userspace中
+}
+</code></pre><p>kvm_arch_vcpu_create 与架构相关的申请与初始化工作，例如创建vcpu的mmu</p>
+<pre><code>//x86.c
+struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
+                    unsigned int id)
+{
+        vcpu = kvm_x86_ops-&gt;vcpu_create(kvm, id);//实际调用 vmx_create_vcpu
+        ...
+        vmx_vcpu_setup(vmx);// 调用vmx_vcpu_setup来设置VCPU进入非根模式下寄存器的相关信息，这个函数主要是设置VMCS数据结构中客户机状态域和宿主机状态域信息，以确保在进行VM-Entry 时，VCPU可以在非根模式下正确运行，发生VM-Exit时，也可正确切换回KVM执行环境；
+        vmx_vcpu_put(&amp;vmx-&gt;vcpu);
+        put_cpu();//允许抢占-&gt;执行调度-&gt;任务切换
+
+}
+
+// vmx.c
+static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
+{
+    vmx = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL_ACCOUNT);//为kvm_vcpu申请内核内存
+    vmx-&gt;vpid = allocate_vpid();//分配标识符
+    vmx-&gt;guest_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL_ACCOUNT);
+    err = alloc_loaded_vmcs(&amp;vmx-&gt;vmcs01);
+    ...
+    return &amp;vmx-&gt;vcpu;
+}//该函数定义vmx，为vmx的相关成员申请内存空间以及初始化
+</code></pre><p>kvm_arch_vcpu_setup 对kvm_vcpu中的数据结构进行初始化，将VCPU的信息加载到CPU中，执行 MMU的初始化工作和VCPU的复位操作</p>
+<pre><code>kvm_arch_vcpu_setup =&gt; kvm_mmu_setup =&gt; init_kvm_mmu =&gt; init_kvm_tdp_mmu//支持tdp时，初始化之，设置 vcpu-&gt;arch.mmu 中的属性和函数,
+
+int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
+{
+    vcpu_load(vcpu);
+    kvm_vcpu_reset(vcpu, false);
+    kvm_init_mmu(vcpu, false);
+}
+</code></pre><p>总的来说：kvm_arch_vcpu_create 通过调用 vmx_create_vcpu 为 kvm_vcpu结构体分配空间，对vcpu的操作实质是对该结构体的操作；通过调用 vmx_vcpu_setup 初始化申请的 vcpu，包括对vmcs结构的初始化和其他虚拟寄存器的初始化。为生成的vcpu生成一个fd，返回qemu层面，qemu层面使用该fd进行标识与访问vcpu。</p>
+<h2 id="vCPU的运行"><a href="#vCPU的运行" class="headerlink" title="vCPU的运行"></a>vCPU的运行</h2><h3 id="qemu层"><a href="#qemu层" class="headerlink" title="qemu层"></a>qemu层</h3><p>上面主要讲述了创建与初始化vCPU的流程。当vCPU创建成功，一切工作就绪后，就会运行vcpu。<br>函数调用链：</p>
+<pre><code>qemu_kvm_cpu_thread_fn -&gt; kvm_cpu_exec -&gt; kvm_vcpu_ioctl(cpu, KVM_RUN, 0) -&gt; ... -&gt; kvm
+</code></pre><p>kvm_cpu_exec: 调用kvm_run 运行子机; 分析exit的原因，进行处理</p>
+<pre><code> run_ret = kvm_vcpu_ioctl(cpu, KVM_RUN, 0);
+
+ attrs = kvm_arch_post_run(cpu, run);
+
+if (run_ret &lt; 0) {...}
+switch (run-&gt;exit_reason) {//struct kvm_run *run = cpu-&gt;kvm_run; qemu和kvm中的kvm_run进行了内存映射
+         case KVM_EXIT_IO:...
+         case KVM_EXIT_SHUTDOWN:...
+         case VM_EXIT_UNKWON:...    
+     }while(ret==0)
+</code></pre><p>qemu_kvm_cpu_thread_fn: 由于处于while循环中，处理完一次exit后又进行ioctl调用运行虚拟机并切换到客户模式</p>
+<pre><code>while (1) {
+        if (cpu_can_run(cpu)) {
+            r = kvm_cpu_exec(cpu);
+            if (r == EXCP_DEBUG) {
+                cpu_handle_guest_debug(cpu);
+            }
+        }
+        qemu_kvm_wait_io_event(cpu);
+    }
+</code></pre><p>由代码分析可知，通过 kvm_cpu_exec 函数调用kvm提供的kvm_run接口以此来达到运行vcpu的目的。vcpu运行guest,guest发生vm exit时，首先会在kvm中进行处理，如果kvm中处理不了将会回到qemu中进行vm exit原因分析，继而进行处理。处理完成之后将会继续回到kvm中执行对应vcpu的kvm_run。</p>
+<h3 id="KVM层-KVM-RUN"><a href="#KVM层-KVM-RUN" class="headerlink" title="KVM层, KVM_RUN"></a>KVM层, KVM_RUN</h3><p>函数调用链：</p>
+<pre><code>kvm_vcpu_ioctl(kvm_run) -&gt; kvm_arch_vcpu_ioctl_run -&gt; vcpu_run -&gt; vcpu_enter_guest -&gt; vmx_vcpu_run(vcpu)
+-&gt;  __vmx_vcpu_run -&gt; vmenter.S -&gt; vmx_vmenter
+</code></pre><p>在 vmenter.S执行相关的汇编指令， 调用 VMLAUNCH启动vm, VMRESUME再次进入vm. 当退出vm时，将会进行vm_exit处理。<br>vmx_vcpu_run：<br>在该函数中会配置好VMCS结构中客户机状态域和宿主机状态域中相关字段的信息，vmcs结构是由CPU自动加载与保存的；另外还会调用汇编函数，主要是KVM为guest加载通用寄存器和调试寄存器信息，因为这些信息CPU不会自动加载，需要手动加载。一切就绪后执行 VMLAUNCH或者VMRESUME指令进入客户机执行环境。另外，guest也可以通过VMCALL指令调用KVM中的服务。</p>
+<p>vmenter.S: 将vcpu中的寄存器中的内容加载到cpu的寄存器上</p>
+<pre><code>/* Load guest registers.  Don&apos;t clobber flags. */
+...
+#ifdef CONFIG_X86_64
+    mov VCPU_R8 (%_ASM_AX),  %r8
+    mov VCPU_R9 (%_ASM_AX),  %r9
+    mov VCPU_R10(%_ASM_AX), %r10
+    mov VCPU_R11(%_ASM_AX), %r11
+    mov VCPU_R12(%_ASM_AX), %r12
+    mov VCPU_R13(%_ASM_AX), %r13
+    mov VCPU_R14(%_ASM_AX), %r14
+    mov VCPU_R15(%_ASM_AX), %r15
+#endif
+</code></pre><p>vmx_vcpu_run: 配置VMCS结构,cpu自动加载，通过vmcs的相关指令读来实现（vmcs_writel，vmcs_write32等等）。</p>
+<p>vcpu_enter_guest：该函数返回1，继续保持vcpu运行，否则退回到userspace.</p>
+<pre><code>r = kvm_x86_ops-&gt;handle_exit(vcpu);
+</code></pre><p>当 vm exit时，需要对exit的原因进行处理，根据exit reason来决定是否交由userspace处理。</p>
+<pre><code>vcpu_enter_guest -&gt; vmx_handle_exit
+vmx_handle_exit处理的时候，首先根据vcpu获取其对应的vmx，从vmx中获得 exit_reason.
+vmx_henadle_exit-&gt;handle_io
+                -&gt;handle_rdmsr
+                -&gt;handle_ept_violation
+                -&gt;handle_vmx_instruction return 1;
+</code></pre><p>vcpu_run中,当 vcpu_enter_guest 返回值小于等于0时，将会退出循环，否则将会在kvm中继续执行。退出循环之后将会将返回值返回给userspace进行处理，exit reason 被记录在 kvm run中。exit reason 被记录在 kvm run中,kvm_run被映射到qemu层面的CPU结构体中，因此可以在qemu层获得exit_reason</p>
+<pre><code>for (;;) {
+    if (kvm_vcpu_running(vcpu)) {
+        r = vcpu_enter_guest(vcpu);
+    } else {
+        r = vcpu_block(kvm, vcpu);
+    }
+
+if (r &lt;= 0)
+    break;
+</code></pre><p>当发生VM_EXIT时，会在KVM中分析原因，之后在KVM中或者Qemu进行处理exit，然后再返回guest中执行。如果有针对guest的外部中断到来，它是如何被guest感知的呢？</p>
+<h3 id="中断注入VCPU的方式"><a href="#中断注入VCPU的方式" class="headerlink" title="中断注入VCPU的方式"></a><a href="http://www.voidcn.com/article/p-rfjkuxdx-bdm.html" target="_blank" rel="noopener">中断注入VCPU的方式</a></h3><p>当外部有中断来时，首先通过qemu, kvm模拟中断，之后调用 kvm_make_request 函数生成一个中断请求。<br>在vCPU RUN的环节中可知，  vcpu_run -&gt; vcpu_enter_guest-&gt;vmx_vcpu_run 进入guest.进入guest之前，在vcpu_enter_guest函数中会调用 kvm_check_reqest 检查是否有中断请求需要注入。当确认有中断需要注入时，即调用函数注入。</p>
+<pre><code>vcpu_enter_guest -&gt;kvm_check_request - inject_pending_event:
+
+if (kvm_request_pending(vcpu)) {
+    if (kvm_check_request(KVM_REQ_GET_VMCS12_PAGES, vcpu))
+        kvm_x86_ops-&gt;get_vmcs12_pages(vcpu);
+    if (kvm_check_request(KVM_REQ_MMU_RELOAD, vcpu))
+        kvm_mmu_unload(vcpu);
+    ...
+    if (kvm_check_request(KVM_REQ_EVENT, vcpu) || req_int_win) {
+        ++vcpu-&gt;stat.req_event;
+        kvm_apic_accept_events(vcpu);
+        if (vcpu-&gt;arch.mp_state == KVM_MP_STATE_INIT_RECEIVED) {
+            r = 1;
+            goto out;
+        }
+
+        if (inject_pending_event(vcpu, req_int_win) != 0)
+            req_immediate_exit = true;
+        else {}
+         */
+        if (kvm_check_request(KVM_REQ_HV_STIMER, vcpu))
+            kvm_hv_process_stimers(vcpu);
+    }
+</code></pre><p>vmx 注入中断：</p>
+<pre><code>inject_pending_event-&gt; set_irq = vmx_inject_irq
+</code></pre><p>inject_pending_event:该函数用来把中断请求写入到目标vcpu的中断请求寄存器。</p>
+<pre><code>    else if (!vcpu-&gt;arch.exception.pending) {
+        else if (vcpu-&gt;arch.interrupt.injected)
+            kvm_x86_ops-&gt;set_irq(vcpu);//call vmx_inject_irq
+}
+vmx_inject_irq: 该函数将会调用 vmcs_write32 指令向vmcs的 VM_ENTRY_INTR_INFO_FIELD 写入中断。
+</code></pre><p>此时，中断请求已经被写入到了vcpu中去了，vmx_vcpu_run 在vcpu开始运行之前，会读取vmcs中的信息，cpu在运行时将会知道有中断请求到来，然后在guest中调用中断处理函数处理中断请求。<br>总的来说，qemu和kvm模拟中断之后，生成一个中断请求。vcpu在进入guest之前，会在kvm中检查是否有中断注入请求存在。如果存在，则会将该中断请求写入到vmcs中的相关中断字段中。进入guest时，即VM_ENTRY时，首先会检查相关VM_ENTRY的控制字段（控制中断与异常注入属于VM_ENTRY的控制字段），发现存在中断请求。VCPU在运行时将会调用guest中的中断处理函数处理该中断。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>Intel VT-x为CPU的虚拟化提供了硬件辅助技术。通过在CPU层面引入VMX 操作模式，加速 guest 执行效率。guest运行在vmx的非root模式下，host运行在vmx的root模式。Qemu本质为host上的一个进程，该进程包括主线程管理线程以及其他任务线程，包括vCPU、异步IO线程等等。对于CPU的虚拟化，首先qemu中会根据vcpu的数量，为每一个vcpu分配一个线程。该vcpu线程会通过ioctl调用kvm提供的 KVM_CREATE_VCPU API进行kvm中创建vcpu.在kVM中根据CPU的架构为特定架构的vCPU结构体申请存储空间，初始化vCPU的相关成员变量，包括vmcs、相关寄存器组。在kvm中创建成功vCPU之后，会将该结构对应的fd返回给Qemu层，这样Qemu层可以通过ioctl+fd来访问内核中的vCPU。<br>当vCPU创建完成之后，开始运行vCPU。在Qemu层，当检测到vCPU可以运行之后，就调用kvm提供的KVM_RUN API进入到内核中执行vCPU运行guest。guest在运行期间会发生 VM_EXIT,即从vmx的非根模式切换到根模式。如果EXIT需要被Qemu层处理，会将该EXIT注入到Qemu层面，Qemu层处理完中断之后再次返回到kvm中运行vCPU。在KVM中,为vCPU绑定一个物理CPU,执行VMLAUNCH初次进入guest中，或者执行 VMRESUME在发生VM_EXIT之后再次进入guest,该进入称为VM_ENTRY，发生VM_ENTRY时，CPU则将vCPU对应的VMCS中的字段加载到物理CPU上执行，当发生VM_Exit时，CPU则将当前的CPU状态保存到VCPU对应的VMCS中，以备下次VMRESUME。<br>guest在运行期间会发生VM_EXIT，导致VM_EXIT的原因有：执行了会导致VM_EXIT的特权指令、guest中的中断或者异常、外部中断、CPU任务调度等等。发生VM_EXIT之后，首先会在KVM中进行处理，KVM中处理不了的中断将会交给Qemu层面进行处理。一般来说，读取CPU的msr寄存器、vmx指令操作等操作会直接在kvm中处理，由IO、MMIO、内部错误等exit会视情况交由Qemu层面处理。外部中断会导致VMEXIT。关于外部中断注入vCPU的过程，首先会在Qemu和kVM中模拟中断，然后在KVM中生成一个中断请求。发生VMEXIT之后再次进入guest之前会检查是否有中断请求，如果存在中断请求，调用vmcs_write32 指令向vmcs相应字段写入中断，此时中断被注入到了vCPU。在VM_ENTRY环节会读取该中断请求到vcpu绑定的CPU上。这样CPU在运行环节就知道有中断到来，调用对应的中断处理函数处理中断。</p>
+<h2 id="附录"><a href="#附录" class="headerlink" title="附录"></a>附录</h2><h4 id="导致-vm-exits-的指令"><a href="#导致-vm-exits-的指令" class="headerlink" title="导致 vm-exits 的指令"></a>导致 vm-exits 的指令</h4><ol>
+<li>无条件退出<br> CPUID， INVD， MOV from CR3, VMCALL, VMCLEAR, VMLAUNCH, VMPTRLD， VMPTRST, VMREAD， VMRESUME, VMWRITE, VMXOFF, VMXON</li>
+<li>有条件退出<br> 某条指令是否退出依赖于 VM-execution controls的设置。特权指令执行时触发异常，当有异常发生时，在其中断向量表查找Exception Bitmap对应的标志位，如果该标志位为1，该异常将会导致 vm exit。下面给出Bitmap的简介图，由32位构成，也即 VM-Excution的控制域。<br> <img src="https://i.imgur.com/GAXBsuv.png" alt=" Deﬁnitions of Processor-Based VM-Execution Controls
+"></li>
+</ol>
+<h3 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h3><p><a href="https://www.cnblogs.com/lsh123/p/8470914.html" target="_blank" rel="noopener">https://www.cnblogs.com/lsh123/p/8470914.html</a><br><a href="https://rayanfam.com/topics/hypervisor-from-scratch-part-5/" target="_blank" rel="noopener">https://rayanfam.com/topics/hypervisor-from-scratch-part-5/</a><br><a href="https://blog.csdn.net/wanthelping/article/details/47068775" target="_blank" rel="noopener">https://blog.csdn.net/wanthelping/article/details/47068775</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/qemu/" rel="tag"># qemu</a>
+          
+            <a href="/tags/kvm/" rel="tag"># kvm</a>
+          
+            <a href="/tags/虚拟化/" rel="tag"># 虚拟化</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/08/23/CCP's Implementation Based on Linux Kernel/" rel="next" title="CCP's Implementation Based on Linux Kernel">
+                <i class="fa fa-chevron-left"></i> CCP's Implementation Based on Linux Kernel
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/08/23/qemu-kvm 内存虚拟化/" rel="prev" title="Qemu-kvm memory 虚拟化">
+                Qemu-kvm memory 虚拟化 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div class="comments" id="comments">
+      <div id="disqus_thread">
+        <noscript>
+          Please enable JavaScript to view the
+          <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+        </noscript>
+      </div>
+    </div>
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Xingguo</p>
+              <p class="site-description motion-element" itemprop="description">To share something Useful and Meaningful Located in MY mind</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">10</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">15</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/XingguoTian" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Qemu-kvm-cpu虚拟化简要分析"><span class="nav-number">1.</span> <span class="nav-text">Qemu-kvm cpu虚拟化简要分析</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#CPU-虚拟化综述"><span class="nav-number">1.1.</span> <span class="nav-text">CPU 虚拟化综述</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#概要"><span class="nav-number">1.1.1.</span> <span class="nav-text">概要</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#VT-x技术简介"><span class="nav-number">1.1.2.</span> <span class="nav-text">VT-x技术简介</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#VMCS"><span class="nav-number">1.1.3.</span> <span class="nav-text">VMCS</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#vCPU的创建与初始化"><span class="nav-number">1.2.</span> <span class="nav-text">vCPU的创建与初始化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#简述"><span class="nav-number">1.2.1.</span> <span class="nav-text">简述</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Qemu-层面"><span class="nav-number">1.2.2.</span> <span class="nav-text">Qemu 层面</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Kvm-层面，创建vcpu的过程"><span class="nav-number">1.2.3.</span> <span class="nav-text">Kvm 层面，创建vcpu的过程</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#vCPU的运行"><span class="nav-number">1.3.</span> <span class="nav-text">vCPU的运行</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#qemu层"><span class="nav-number">1.3.1.</span> <span class="nav-text">qemu层</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#KVM层-KVM-RUN"><span class="nav-number">1.3.2.</span> <span class="nav-text">KVM层, KVM_RUN</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#中断注入VCPU的方式"><span class="nav-number">1.3.3.</span> <span class="nav-text">中断注入VCPU的方式</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">1.4.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#附录"><span class="nav-number">1.5.</span> <span class="nav-text">附录</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#导致-vm-exits-的指令"><span class="nav-number">1.5.0.1.</span> <span class="nav-text">导致 vm-exits 的指令</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#参考资料"><span class="nav-number">1.5.1.</span> <span class="nav-text">参考资料</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Xingguo</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Pisces</a> v5.1.4</div>
+
+
+
+
+
+  <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+  <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+    
+      <script id="dsq-count-scr" src="https://https-xingguotian-github-io.disqus.com/count.js" async></script>
+    
+
+    
+      <script type="text/javascript">
+        var disqus_config = function () {
+          this.page.url = 'http://yoursite.com/2019/08/23/qemu-kvm CPU虚拟化/';
+          this.page.identifier = '2019/08/23/qemu-kvm CPU虚拟化/';
+          this.page.title = 'Qemu-kvm CPU虚拟化';
+        };
+        var d = document, s = d.createElement('script');
+        s.src = 'https://https-xingguotian-github-io.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', '' + +new Date());
+        (d.head || d.body).appendChild(s);
+      </script>
+    
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
