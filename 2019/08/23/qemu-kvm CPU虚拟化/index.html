@@ -90,7 +90,7 @@
 <meta property="og:image" content="https://i.imgur.com/ObPjHbj.png">
 <meta property="og:image" content="https://i.imgur.com/tocZ7ET.png">
 <meta property="og:image" content="https://i.imgur.com/GAXBsuv.png">
-<meta property="og:updated_time" content="2019-08-23T03:07:47.723Z">
+<meta property="og:updated_time" content="2019-08-23T03:37:46.379Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Qemu-kvm CPU虚拟化">
 <meta name="twitter:description" content="Qemu-kvm cpu虚拟化简要分析CPU 虚拟化综述概要本文讲述的cpu虚拟化流程基于硬件辅助的虚拟化技术，硬件辅助的虚拟化技术包括Intel virtualization Technology(Intel VT) 和 AMD的 AMD virtualization(AMD V),本文以Intel VT技术为主。关于CPU虚拟化，Intel在CPU硬件层面提供了虚拟化支持 VT-x。之所以使用">
@@ -296,7 +296,7 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-08-23T11:09:29+08:00">
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-08-23T11:37:46+08:00">
                 2019-08-23
               </time>
             
@@ -372,7 +372,7 @@
 <h3 id="VMCS"><a href="#VMCS" class="headerlink" title="VMCS"></a>VMCS</h3><p>Vmcs是vmx操作模式下的一个重要结构，这里简要说一下。VMCS保存虚拟机的相关CPU状态，每个VCPU都有一个VMCS，每个物理CPU都有VMCS对应的寄存器（物理的），当CPU发生VM-Entry时，CPU则从VCPU指定的内存中读取VMCS加载到物理CPU上执行，当发生VM-Exit时，CPU则将当前的CPU状态保存到VCPU指定的内存中，即VMCS，以备下次VMRESUME。</p>
 <p>VMLAUCH指VM的第一次VM-Entry，VMRESUME则是VMLAUCH之后后续的VM-Entry。VMCS下有一些控制域：<br><img src="https://i.imgur.com/tocZ7ET.png" alt="VMCS 控制域"></p>
 <h2 id="vCPU的创建与初始化"><a href="#vCPU的创建与初始化" class="headerlink" title="vCPU的创建与初始化"></a>vCPU的创建与初始化</h2><p>在qemu中提供了一个线程供一个vcpu的创建与运行。</p>
-<h3 id="简述"><a href="#简述" class="headerlink" title="简述"></a>简述</h3><p>vCPU本质是一个结构体，该结构体包括 id, 虚拟寄存器组，状态信息等等。vCPU在用户层面维护一个vCPU的fd，通过ioctl前往kvm中访问，当然qemu层面也需要维护与vcpu状态相关的结构体。在 kvm层面，申请vCPU的结构体，保存相关的运行状态变量等等。    </p>
+<h3 id="简述"><a href="#简述" class="headerlink" title="简述"></a>简述</h3><p>vCPU本质是一个结构体，该结构体包括 id, 虚拟寄存器组，状态信息等等。在用户层面维护一个CPU结构体,包括vcpu fd， kvm_run等，通过ioctl前往kvm中访问。在 kvm层面，申请vCPU的结构体，保存相关的运行状态变量等等。    </p>
 <h3 id="Qemu-层面"><a href="#Qemu-层面" class="headerlink" title="Qemu 层面"></a>Qemu 层面</h3><p>函数调用链：</p>
 <pre><code>pc_init1 -&gt; pc_cpus_init(pcms) -&gt; pc_new_cpu -&gt; cpu_x86_create -&gt; X86_CPU -&gt; object_new -&gt; ... -&gt; x86_cpu_realizefn
 </code></pre><p>cpu_x86_creat: 生成一个x86结构的CPU结构体，存在qemu层面，记录vcpu的fd, kvm_run状态等。</p>

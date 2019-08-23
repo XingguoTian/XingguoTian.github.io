@@ -79,21 +79,21 @@
 
 
 
-<meta name="description" content="#内存虚拟化 内存初始化qemu的虚拟地址作为guest的物理地地址，guest运行在虚拟的地址空间，但终究是存在物理内存上的，所以要建立虚拟地址空间与物理地址之间的映射。另外，必须要为虚拟机运行程序提供安全的、隔离的运行环境，避免虚拟机之间、虚拟机与宿主机之间的相互干扰。qemu会提前为guest申请好虚拟地址，只有真正需要的时候，通过产生页中断申请物理地址，并且建立页表产生对应关系。 gues">
+<meta name="description" content="内存虚拟化内存初始化qemu的虚拟地址作为guest的物理地地址，guest运行在虚拟的地址空间，但终究是存在物理内存上的，所以要建立虚拟地址空间与物理地址之间的映射。另外，必须要为虚拟机运行程序提供安全的、隔离的运行环境，避免虚拟机之间、虚拟机与宿主机之间的相互干扰。qemu会提前为guest申请好虚拟地址，只有真正需要的时候，通过产生页中断申请物理地址，并且建立页表产生对应关系。 guest对">
 <meta name="keywords" content="qemu,kvm,虚拟化">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Qemu-kvm memory 虚拟化">
 <meta property="og:url" content="http://yoursite.com/2019/08/23/qemu-kvm 内存虚拟化/index.html">
 <meta property="og:site_name" content="Tian-Daye on the Way">
-<meta property="og:description" content="#内存虚拟化 内存初始化qemu的虚拟地址作为guest的物理地地址，guest运行在虚拟的地址空间，但终究是存在物理内存上的，所以要建立虚拟地址空间与物理地址之间的映射。另外，必须要为虚拟机运行程序提供安全的、隔离的运行环境，避免虚拟机之间、虚拟机与宿主机之间的相互干扰。qemu会提前为guest申请好虚拟地址，只有真正需要的时候，通过产生页中断申请物理地址，并且建立页表产生对应关系。 gues">
+<meta property="og:description" content="内存虚拟化内存初始化qemu的虚拟地址作为guest的物理地地址，guest运行在虚拟的地址空间，但终究是存在物理内存上的，所以要建立虚拟地址空间与物理地址之间的映射。另外，必须要为虚拟机运行程序提供安全的、隔离的运行环境，避免虚拟机之间、虚拟机与宿主机之间的相互干扰。qemu会提前为guest申请好虚拟地址，只有真正需要的时候，通过产生页中断申请物理地址，并且建立页表产生对应关系。 guest对">
 <meta property="og:locale" content="zh-Hans">
 <meta property="og:image" content="https://i.imgur.com/hSaae0d.png">
 <meta property="og:image" content="https://i.imgur.com/Sump8jS.png">
 <meta property="og:image" content="https://i.imgur.com/QUren0q.jpg">
-<meta property="og:updated_time" content="2019-08-23T03:09:14.247Z">
+<meta property="og:updated_time" content="2019-08-23T04:06:41.899Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Qemu-kvm memory 虚拟化">
-<meta name="twitter:description" content="#内存虚拟化 内存初始化qemu的虚拟地址作为guest的物理地地址，guest运行在虚拟的地址空间，但终究是存在物理内存上的，所以要建立虚拟地址空间与物理地址之间的映射。另外，必须要为虚拟机运行程序提供安全的、隔离的运行环境，避免虚拟机之间、虚拟机与宿主机之间的相互干扰。qemu会提前为guest申请好虚拟地址，只有真正需要的时候，通过产生页中断申请物理地址，并且建立页表产生对应关系。 gues">
+<meta name="twitter:description" content="内存虚拟化内存初始化qemu的虚拟地址作为guest的物理地地址，guest运行在虚拟的地址空间，但终究是存在物理内存上的，所以要建立虚拟地址空间与物理地址之间的映射。另外，必须要为虚拟机运行程序提供安全的、隔离的运行环境，避免虚拟机之间、虚拟机与宿主机之间的相互干扰。qemu会提前为guest申请好虚拟地址，只有真正需要的时候，通过产生页中断申请物理地址，并且建立页表产生对应关系。 guest对">
 <meta name="twitter:image" content="https://i.imgur.com/hSaae0d.png">
 
 
@@ -296,7 +296,7 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-08-23T11:09:37+08:00">
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-08-23T12:06:41+08:00">
                 2019-08-23
               </time>
             
@@ -367,11 +367,9 @@
       
 
       
-        <p>#内存虚拟化</p>
-<h2 id="内存初始化"><a href="#内存初始化" class="headerlink" title="内存初始化"></a>内存初始化</h2><p><strong>qemu的虚拟地址作为guest的物理地地址</strong>，guest运行在虚拟的地址空间，但终究是存在物理内存上的，所以要建立虚拟地址空间与物理地址之间的映射。另外，必须要为虚拟机运行程序提供安全的、隔离的运行环境，避免虚拟机之间、虚拟机与宿主机之间的相互干扰。qemu会提前为guest申请好虚拟地址，只有真正需要的时候，通过产生页中断申请物理地址，并且建立页表产生对应关系。</p>
-<h3 id="guest对内存的要求"><a href="#guest对内存的要求" class="headerlink" title="guest对内存的要求"></a>guest对内存的要求</h3><p>对操作系统从加载到执行的情况来分析，它需要使用一个从0开始的、连续的物理地址空间，如BIOS会在物理内存0 ~ 1K的内存空间内创建中断向量表，之后将启动引导程序加载到物理内存0x07C00的位置，内核代码最终也是从内存1M开始的位置加载并执行；在有虚拟机运行的硬件平台上，唯一的物理内存是用于加载、运行宿主机的操作系统的，因此Guest OS是不能直接在物理内存上加载、运行的，唯一可行的办法是为Guest OS 提供一个虚拟的物理内存空间，我们称之为虚拟机物理地址空间，这个虚拟的内存空间是从0开始的、连续的内存空间，也是Guest OS能够感知和管理的虚拟物理内存单元，Guest OS在这个虚拟机物理内存空间的基础上为应用程序分配内存空间，创建页表等；<br>关键名词：<br>gva :  Guest Virtual Address      虚拟机线性地址<br>gpa :  Guest Physical Address     虚拟机物理地址<br>gfn :  Guest Page Frame Number    虚拟机物理地址空间中一个物理页对应的页帧号<br>hva :  Host Virtual Address       宿主机线性地址<br>hpa :  Host Physical Address      宿主机物理地址<br>hfn :  Host Page Frame Number   宿主机物理地址空间中一个物理页对应的页帧号<br>pte :  Page Table Entry          页表项(包含页表的起始地址及相应访问权限位)<br>gpte :  Guest Page Table Entry    虚拟机页表项<br>spte :  Shadow Page Table Entry   EPT表中的页表项  </p>
+        <h1 id="内存虚拟化"><a href="#内存虚拟化" class="headerlink" title="内存虚拟化"></a>内存虚拟化</h1><h2 id="内存初始化"><a href="#内存初始化" class="headerlink" title="内存初始化"></a>内存初始化</h2><p><strong>qemu的虚拟地址作为guest的物理地地址</strong>，guest运行在虚拟的地址空间，但终究是存在物理内存上的，所以要建立虚拟地址空间与物理地址之间的映射。另外，必须要为虚拟机运行程序提供安全的、隔离的运行环境，避免虚拟机之间、虚拟机与宿主机之间的相互干扰。qemu会提前为guest申请好虚拟地址，只有真正需要的时候，通过产生页中断申请物理地址，并且建立页表产生对应关系。</p>
+<h3 id="guest对内存的要求"><a href="#guest对内存的要求" class="headerlink" title="guest对内存的要求"></a>guest对内存的要求</h3><p>对操作系统从加载到执行的情况来分析，它需要使用一个从0开始的、连续的物理地址空间.在有虚拟机运行的硬件平台上，唯一的物理内存是用于加载、运行宿主机的操作系统的，因此Guest OS是不能直接在物理内存上加载、运行的，唯一可行的办法是为Guest OS 提供一个虚拟的物理内存空间，我们称之为虚拟机物理地址空间，这个虚拟的内存空间是从0开始的、连续的内存空间，也是Guest OS能够感知和管理的虚拟物理内存单元，Guest OS在这个虚拟机物理内存空间的基础上为应用程序分配内存空间，创建页表等；<br>关键名词：<br>gva :  Guest Virtual Address      虚拟机线性地址<br>gpa :  Guest Physical Address     虚拟机物理地址<br>gfn :  Guest Page Frame Number    虚拟机物理地址空间中一个物理页对应的页帧号<br>hva :  Host Virtual Address       宿主机线性地址<br>hpa :  Host Physical Address      宿主机物理地址<br>hfn :  Host Page Frame Number   宿主机物理地址空间中一个物理页对应的页帧号<br>pte :  Page Table Entry          页表项(包含页表的起始地址及相应访问权限位)<br>gpte :  Guest Page Table Entry    虚拟机页表项<br>spte :  Shadow Page Table Entry   EPT表中的页表项  </p>
 <p>Linux 内核中采用四级页表：<br>页全局目录 (Page Global Directory, pgd)；<br>页上级目录 (Page Upper Directory, pud)；<br>页中间目录 (Page Middle Directory, pmd)；<br>页表 (Page Table, pt)。  </p>
-<p>task_struct 中的 mm_struct 对象用于管理该进程（或者线程共享的）页表。准确地说，mm_struct 中的 pgd 指针指向着该进程的页全局目录。</p>
 <h3 id="Qemu的内存布局"><a href="#Qemu的内存布局" class="headerlink" title="Qemu的内存布局"></a>Qemu的内存布局</h3><ol>
 <li><p>关键数据结构罗列<br> AddressSpace、 MemoryRegion、 RAMBlock、 FlatView、 MemoryRegionSection、 KVMSlot、AddressSpaceDispatch、 kvm_userspace_memory_region。</p>
 </li>
@@ -578,7 +576,7 @@ struct kvm_userspace_memory_region {
                  -&gt; __gfn_to_pfn_memslot//寻找gfn对应的pfn,不允许io wait
                      -&gt; __gfn_to_hva_many -&gt; __gfn_to_hva_memslot//计算gfn对应的起始 HVA,slot-&gt;userspace_addr + (gfn - slot-&gt;base_gfn) * PAGE_SIZE;
                     -&gt; hva_to_pfn //计算 HVA 对应的 pfn，同时确保该物理页在内存中
-                        -&gt; hva_to_pfn_fast//为发生write fault的页映射writeable页
+                        -&gt; hva_to_pfn_fast//
                         -&gt; hva_to_pfn_slow//申请物理页，即为pfn赋值,可能会sleep，可能会等待swap page载入
                 -&gt; kvm_arch_setup_async_pf//支持异步
                 -&gt; __gfn_to_pfn_memslot//允许io wait
@@ -616,7 +614,7 @@ if (!prefault &amp;&amp; kvm_can_do_async_pf(vcpu)) {//判断vcpu是否允许注
 *pfn = __gfn_to_pfn_memslot(slot, gfn, false, NULL, write, writable);
 return false;
 </code></pre><p><a href="https://git.kernel.org/pub/scm/virt/kvm/kvm.git/commit/?id=7c90705bf2a373aa238661bdb6446f27299ef489" target="_blank" rel="noopener">建立异步寻页机制</a>：</p>
-<p>kvm_arch_setup_async_pf 、kvm_async_page_present_sync 函数中分别会将 kvm_arch_setup_async_pf 和 KVM_PV_REASON_PAGE_READY 中断以  KVM_REQ_EVENT形式注入到子机，子机中会调用 do_async_page_fault 函数处理中断。总的来说，对于swapout mem，可以选择异步模式获取物理页。向guest中发送async page fault 中断，可以帮助子机切换进程，物理页取回来之后再告诉子机把原来的进程调度回来。当子机不能切换进程，此时可以暂停子机。大致流程见下图：<br><img src="https://i.imgur.com/QUren0q.jpg" alt="异步寻页机制"></p>
+<p>kvm_arch_setup_async_pf 、kvm_async_page_present_sync 函数中分别会将 KVM_PV_REASON_PAGE_NOT_PRESENT 和 KVM_PV_REASON_PAGE_READY 中断以  KVM_REQ_EVENT形式注入到子机，子机中会调用 do_async_page_fault 函数处理中断。总的来说，对于swapout mem，可以选择异步模式获取物理页。向guest中发送async page fault 中断，可以帮助子机切换进程，物理页取回来之后再告诉子机把原来的进程调度回来。当子机不能切换进程，此时可以暂停子机。大致流程见下图：<br><img src="https://i.imgur.com/QUren0q.jpg" alt="异步寻页机制"></p>
 
       
     </div>
@@ -811,7 +809,7 @@ return false;
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#内存初始化"><span class="nav-number">1.</span> <span class="nav-text">内存初始化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#guest对内存的要求"><span class="nav-number">1.1.</span> <span class="nav-text">guest对内存的要求</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Qemu的内存布局"><span class="nav-number">1.2.</span> <span class="nav-text">Qemu的内存布局</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#EPT-Violation"><span class="nav-number">1.3.</span> <span class="nav-text">EPT Violation</span></a></li></ol></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#内存虚拟化"><span class="nav-number">1.</span> <span class="nav-text">内存虚拟化</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#内存初始化"><span class="nav-number">1.1.</span> <span class="nav-text">内存初始化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#guest对内存的要求"><span class="nav-number">1.1.1.</span> <span class="nav-text">guest对内存的要求</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Qemu的内存布局"><span class="nav-number">1.1.2.</span> <span class="nav-text">Qemu的内存布局</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#EPT-Violation"><span class="nav-number">1.1.3.</span> <span class="nav-text">EPT Violation</span></a></li></ol></li></ol></li></ol></div>
             
 
           </div>
